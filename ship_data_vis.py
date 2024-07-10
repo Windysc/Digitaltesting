@@ -150,6 +150,31 @@ class ShipExperiment:
             plt.xlabel('steps')
             plt.show()
 
+    def plot_tcpa(self,iter):
+        if iter !=-1:
+            for j in range(iter+1):
+                plt.plot(np.arange(0, self.steps[j], 1), self.tcpa[j][1:, 0],label="k="+str(j))
+            plt.ylabel('TCPA')
+            plt.xlabel('steps')
+            plt.show()
+
+    def plot_dcpa(self,iter):
+        if iter!=-1:
+            for j in range(iter+1):
+                plt.plot(np.arange(0, self.steps[j], 1), self.dcpa[j][1:, 0],label="k="+str(j))
+            plt.ylabel('DCPA')
+            plt.xlabel('steps')
+            plt.show()
+
+    def plot_CR(self, iter):
+        if iter != -1:5
+            for j in range(iter + 1):
+                plt.plot(np.arange(0, self.steps[j], 1), self.cr[j][1:, 0], label="k=" + str(j))
+            plt.ylabel('CR')
+            plt.xlabel('steps')
+            plt.show()
+
+
     def plot_obs(self, iter=0, time=True):
         img, ax = plt.subplots(5, sharex=True)
         self.obs_states_str[0] = 'd'
@@ -188,18 +213,7 @@ class ShipExperiment:
             for tk in a.get_xticklabels():
                 tk.set_visible(True)
         plt.show()
-    def plot_cr(self, iter=0):
-        if iter == -1:
-            for i in range(self.iterations+1):
-                plt.plot(np.arange(0, self.steps[i]+1, 1), self.states[i][:, 0])
-                plt.ylabel('X')
-                plt.xlabel('steps')
-                plt.show()
-        else:
-            plt.plot(np.arange(0, self.steps[iter]+1, 1), self.states[iter][:, 0])
-            plt.ylabel('X')
-            plt.xlabel('steps')
-            plt.show()
+
 
     def show_doubled_lane(polygon):
         """
@@ -270,6 +284,7 @@ class ShipExperiment:
             plt.ylabel('Y')
             plt.xlabel('X')
             plt.show()
+            
     def plot_reward_change(self, iter):
         """
         Plot reward of an iteration
