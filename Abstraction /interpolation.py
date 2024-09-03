@@ -13,11 +13,13 @@ interp_lat = interp1d(t_original, trajectory[:, 1], kind='cubic')
 
 t_interpolated = np.arange(0, t_original[-1] + 1)
 
+#do the interpolation
 trajectory_interpolated = np.column_stack((
     interp_lon(t_interpolated),
     interp_lat(t_interpolated),
 ))
 
+#After we do the downsample to cope with the interval of simulator
 t_downsampled = np.arange(0, t_original[-1] + 1, 20)
 trajectory_downsampled = np.column_stack((
     interp_lon(t_downsampled),
@@ -30,7 +32,7 @@ features = ['Longitude', 'Latitude']
 for i in range(2):  
     ax = axs[i]
     ax.plot(t_original, trajectory[:, i], 'ro', label='Original Data')
-    ax.plot(t_interpolated, trajectory_interpolated[:, i], 'b-', label='1s Interpolation')
+    ax.plot(t_interpolated, trajectory_interpolated[:, i], 'bo', label='1s Interpolation')
     ax.plot(t_downsampled, trajectory_downsampled[:, i], 'g*', label='20s Downsampled')
     ax.set_title(features[i])
     ax.set_xlabel('Time (s)')
