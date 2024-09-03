@@ -3,45 +3,36 @@ import matplotlib.pyplot as plt
 from scipy import stats
 import seaborn as sns
 
-# Load the generated trajectory data
 data = np.load('data/generated_trajectories.npy')
 
-# Assuming the data shape is (num_trajectories, num_points, 4)
-# where the last dimension contains [longitude, latitude, speed, heading]
 
 def analyze_trajectories(data):
     num_trajectories, num_points, _ = data.shape
     
-    # 1. Calculate basic statistics
     mean_lon = np.mean(data[:, :, 0])
     mean_lat = np.mean(data[:, :, 1])
     mean_speed = np.mean(data[:, :, 2])
-    mean_heading = np.mean(data[:, :, 3])
-    
+
     std_lon = np.std(data[:, :, 0])
     std_lat = np.std(data[:, :, 1])
     std_speed = np.std(data[:, :, 2])
-    std_heading = np.std(data[:, :, 3])
+
     
-    # 2. Calculate confidence intervals (95%)
     ci_lon = stats.t.interval(0.95, num_trajectories*num_points-1, loc=mean_lon, scale=std_lon/np.sqrt(num_trajectories*num_points))
     ci_lat = stats.t.interval(0.95, num_trajectories*num_points-1, loc=mean_lat, scale=std_lat/np.sqrt(num_trajectories*num_points))
     ci_speed = stats.t.interval(0.95, num_trajectories*num_points-1, loc=mean_speed, scale=std_speed/np.sqrt(num_trajectories*num_points))
-    ci_heading = stats.t.interval(0.95, num_trajectories*num_points-1, loc=mean_heading, scale=std_heading/np.sqrt(num_trajectories*num_points))
+
     
-    # 3. Calculate ranges
     range_lon = np.max(data[:, :, 0]) - np.min(data[:, :, 0])
     range_lat = np.max(data[:, :, 1]) - np.min(data[:, :, 1])
     range_speed = np.max(data[:, :, 2]) - np.min(data[:, :, 2])
     range_heading = np.max(data[:, :, 3]) - np.min(data[:, :, 3])
     
-    # 4. Print results
     print(f"Longitude - Mean: {mean_lon:.4f}, CI: {ci_lon}, Range: {range_lon:.4f}")
     print(f"Latitude - Mean: {mean_lat:.4f}, CI: {ci_lat}, Range: {range_lat:.4f}")
     print(f"Speed - Mean: {mean_speed:.4f}, CI: {ci_speed}, Range: {range_speed:.4f}")
     print(f"Heading - Mean: {mean_heading:.4f}, CI: {ci_heading}, Range: {range_heading:.4f}")
     
-    # 5. Visualize distributions
     fig, axs = plt.subplots(2, 2, figsize=(15, 15))
     sns.histplot(data[:, :, 0].flatten(), kde=True, ax=axs[0, 0])
     axs[0, 0].set_title('Longitude Distribution')
@@ -97,5 +88,4 @@ def analyze_control_parameters(data):
     plt.savefig('control_distributions.png')
     plt.close()
 
-# Run control analysis
 analyze_control_parameters(data)

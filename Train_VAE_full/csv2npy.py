@@ -31,11 +31,12 @@ df = pd.read_csv(path)
 x = os.path.basename(path)
 
 lat_lon = df[['longitude_degrees', 'latitude_degrees']].values
-downsampled_data = interpolation_downsample(lat_lon, num_points=100)
 speed = df[['speed']].values
+downsampled_data = interpolation_downsample(lat_lon, num_points=100)
 
-#np.save('trajectory_data.npy', lat_lon)
-np.save('/home/junze/.jupyter/Train_VAE_full/speed.npy', speed)
+
+np.save('trajectory_data.npy', lat_lon+speed)
+
 
 dataset = downsampled_data.reshape(1, 100, 2)
 
