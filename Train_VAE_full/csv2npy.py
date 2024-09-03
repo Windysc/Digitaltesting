@@ -41,7 +41,7 @@ np.save('trajectory_data.npy', lat_lon+speed)
 dataset = downsampled_data.reshape(1, 100, 2)
 
 aug_model = tsgm.models.augmentations.GaussianNoise()
-samples = aug_model.generate(X=dataset, n_samples=500, variance=0.00000001)
+samples = aug_model.generate(X=dataset, n_samples=500, variance=0.000001)
 np.save(rf"/home/junze/.jupyter/Train_VAE_full/dataset_{x}.npy", samples)
 
 print(np.shape(samples))
