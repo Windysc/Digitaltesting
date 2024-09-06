@@ -37,7 +37,7 @@ from tsgm.models.monitors import VAEMonitor
 
 VAEMonitor = VAEMonitor(latent_dim=100, output_dim=2, save=True)
 
-path = '/home/junze/.jupyter/Train_VAE_full/dataset_2.csv.npy'
+path = '/home/junze/.jupyter/Train_VAE_full/datasettest_2.npy'
 dataset = np.load(path)
 n = os.path.basename(path)
 
@@ -128,10 +128,20 @@ data_x = vae.generate(100)
 denormalized_data = np.zeros_like(data_x)
 for i in range(data_x.shape[1]):
     column = data_x[:, i]
-    denormalized_data[:, i] = column * (np.max(dataset[:, i]) - np.min(dataset[:, i])) + np.min(dataset[:, i])
+    mean = np.mean(dataset[:, i])
+    std = np.std(dataset[:, i])
+    denormalized_data[:, i] = column * std + mean
 
+noise = np.random.normal(0, 0.0008, denormalized_data.shape)
+denormalized_data += noise
+
+
+for i in range(denormalized_data.shape[1]):
+    min_val = np.min(dataset[:, i])
+    max_val = np.max(dataset[:, i])
+    denormalized_data[:, i] = np.clip(denormalized_data[:, i], min_val, max_val)
 print("Generated data shape:", denormalized_data.shape)
 print("Sample of generated data:", denormalized_data[:5])
 
-np.save('/home/junze/.jupyter/Train_VAE_full/data_{n}x', denormalized_data)
+np.save('/home/junze/.jupyter/Train_VAE_full/data_f2x', denormalized_data)
 print("Data saved successfully.")
