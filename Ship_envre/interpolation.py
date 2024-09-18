@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
-data = np.load('/home/junze/.jupyter/Train_VAE_full/dataset_1.csv.npy')
+data = np.load('/home/junze/.jupyter/Digitaltesting/Ship_envre/datasettest_2.npy')
 
 trajectory = data[0]
 
@@ -44,6 +44,6 @@ plt.tight_layout()
 plt.savefig('interpolation_results.png')
 plt.close()
 
-np.save('downsampled_trajectory.npy', trajectory_downsampled)
+np.save('downsampled_trajectory2.npy', trajectory_downsampled)
 
 print("Interpolation and downsampling complete. Results saved to 'interpolation_results.png' and 'downsampled_trajectory.npy'.")

@@ -10,7 +10,7 @@ class Simulator:
         self.last_local_state = None
         self.current_action = None
         self.steps = 0
-        self.time_span = 10           # 20 seconds for each iteration
+        self.time_span = 10           # 10 seconds for each iteration
         self.number_iterations = 100  # 100 iterations for each step
         self.integrator = None
         self.rk_mode = 'scipy_rk'

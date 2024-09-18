@@ -167,7 +167,7 @@ class ShipExperiment:
             plt.show()
 
     def plot_CR(self, iter):
-        if iter != -1:5
+        if iter != -1:
             for j in range(iter + 1):
                 plt.plot(np.arange(0, self.steps[j], 1), self.cr[j][1:, 0], label="k=" + str(j))
             plt.ylabel('CR')
@@ -222,6 +222,7 @@ class ShipExperiment:
         """
         xs, ys = polygon[:, 0], polygon[:, 1]
         plt.plot(xs, ys, '--', color='grey')
+
 
     def plot_trajectory(self, iter=0):
         """

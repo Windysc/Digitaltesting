@@ -7,7 +7,7 @@ from scipy.spatial.distance import mahalanobis
 
 
 
-data = np.load('/home/junze/.jupyter/Train_VAE_full/datasettest_1.npy')
+data = np.load('/home/junze/.jupyter/Digitaltesting/Ship_envre/downsampled_trajectory1.npy')
 
 
 
@@ -19,126 +19,6 @@ def lat_lon_to_meters(lat, lon, ref_lat, ref_lon):
     x = R * np.radians(lon - ref_lon) * np.cos(np.radians(ref_lat))
     y = R * np.radians(lat - ref_lat)
     return x, y
-
-def analyze_trajectories(data):
-    num_trajectories, num_points, num_features = data.shape
-    
-    ref_lat, ref_lon = np.mean(data[:, 0, 1]), np.mean(data[:, 0, 0])
-    data_meters = data.copy()
-    for i in range(num_trajectories):
-        data_meters[i, :, 0], data_meters[i, :, 1] = lat_lon_to_meters(data[i, :, 1], data[i, :, 0], ref_lat, ref_lon)
-    
-    avg_trajectory = np.mean(data_meters, axis=0)
-    std_trajectory = np.std(data_meters, axis=0)
-    
-    upper_bound = avg_trajectory + 2 * std_trajectory
-    lower_bound = avg_trajectory - 2 * std_trajectory
-    
-    plt.figure(figsize=(12, 8))
-    for i in range(num_trajectories):
-        plt.plot(data_meters[i, :, 0], data_meters[i, :, 1], alpha=0.1, color='gray')
-    
-    plt.plot(avg_trajectory[:, 0], avg_trajectory[:, 1], color='blue', linewidth=2, label='Average Trajectory')
-    plt.plot(upper_bound[:, 0], upper_bound[:, 1], color='red', linestyle='--', label='Upper Bound')
-    plt.plot(lower_bound[:, 0], lower_bound[:, 1], color='green', linestyle='--', label='Lower Bound')
-    
-    plt.xlabel('X (meters)')
-    plt.ylabel('Y (meters)')
-    plt.title('Trajectory Map with Average and Bounds')
-    plt.legend()
-    plt.savefig('trajectory_map_with_stats_meters.png')
-    plt.close()
-
-
-def analyze_trajectories1(data):
-    num_trajectories, num_points, _ = data.shape
-
-    ref_lat, ref_lon = np.mean(data[:, 0, 1]), np.mean(data[:, 0, 0])
-    print(f"Reference Latitude: {ref_lat:.6f}")
-    print(f"Reference Longitude: {ref_lon:.6f}")
-    
-    data_meters = np.zeros((num_trajectories, num_points, 2))
-    for i in range(num_trajectories):
-        data_meters[i, :, 0], data_meters[i, :, 1] = lat_lon_to_meters(data[i, :, 1], data[i, :, 0], ref_lat, ref_lon)
-    
-    avg_trajectory = np.mean(data_meters, axis=0)
-    std_trajectory = np.std(data_meters, axis=0)
-    
-    confidence_level = 0.95
-    degrees_of_freedom = num_trajectories - 1
-    t_value = stats.t.ppf((1 + confidence_level) / 2, degrees_of_freedom)
-    
-    lower_bound = np.zeros_like(avg_trajectory)
-    upper_bound = np.zeros_like(avg_trajectory)
-    
-    for i in range(num_points):
-        for j in range(2):  # 0 for X, 1 for Y
-            se = std_trajectory[i, j] / np.sqrt(num_trajectories)
-            margin_of_error = t_value * se
-            lower_bound[i, j] = avg_trajectory[i, j] - margin_of_error
-            upper_bound[i, j] = avg_trajectory[i, j] + margin_of_error
-    
-    for i, label in enumerate(["First", "Last"]):
-        idx = 0 if label == "First" else -1
-        print(f"\n{label} time stamp statistics:")
-        print(f"X coordinate (meters):")
-        print(f"  Mean: {avg_trajectory[idx, 0]:.2f}")
-        print(f"  Standard deviation: {std_trajectory[idx, 0]:.2f}")
-        print(f"  95% CI: ({lower_bound[idx, 0]:.2f}, {upper_bound[idx, 0]:.2f})")
-        print(f"Y coordinate (meters):")
-        print(f"  Mean: {avg_trajectory[idx, 1]:.2f}")
-        print(f"  Standard deviation: {std_trajectory[idx, 1]:.2f}")
-        print(f"  95% CI: ({lower_bound[idx, 1]:.2f}, {upper_bound[idx, 1]:.2f})")
-    
-    # Plot trajectories with average and confidence intervals
-    plt.figure(figsize=(12, 8))
-    for i in range(num_trajectories):
-        plt.plot(data_meters[i, :, 0], data_meters[i, :, 1], alpha=0.1, color='gray')
-    
-    plt.plot(avg_trajectory[:, 0], avg_trajectory[:, 1], color='blue', linewidth=2, label='Average Trajectory')
-    plt.plot(upper_bound[:, 0], upper_bound[:, 1], color='red', linestyle='--', label=f'{confidence_level*100:.0f}% CI Upper Bound')
-    plt.plot(lower_bound[:, 0], lower_bound[:, 1], color='green', linestyle='--', label=f'{confidence_level*100:.0f}% CI Lower Bound')
-    
-    plt.xlabel('X (meters)')
-    plt.ylabel('Y (meters)')
-    plt.title('Trajectory Map with Average and Confidence Intervals')
-    plt.legend()
-    plt.savefig('trajectory_map_with_confidence_intervals.png')
-    plt.close()
-    
-    # Zoomed-in view
-    plt.figure(figsize=(12, 8))
-    plt.plot(avg_trajectory[:, 0], avg_trajectory[:, 1], color='blue', linewidth=2, label='Average Trajectory')
-    plt.plot(upper_bound[:, 0], upper_bound[:, 1], color='red', linestyle='--', label=f'{confidence_level*100:.0f}% CI Upper Bound')
-    plt.plot(lower_bound[:, 0], lower_bound[:, 1], color='green', linestyle='--', label=f'{confidence_level*100:.0f}% CI Lower Bound')
-    
-    plt.xlabel('X (meters)')
-    plt.ylabel('Y (meters)')
-    plt.title('Zoomed-in View of Average Trajectory and Confidence Intervals')
-    plt.legend()
-    
-    # Add annotations for average CI width
-    avg_ci_width_x = np.mean(upper_bound[:, 0] - lower_bound[:, 0])
-    avg_ci_width_y = np.mean(upper_bound[:, 1] - lower_bound[:, 1])
-    avg_ci_width = np.sqrt(avg_ci_width_x**2 + avg_ci_width_y**2)
-    
-    mid_point = len(avg_trajectory) // 2
-    plt.annotate(f'Avg. CI width: {avg_ci_width:.2f}m', 
-                 xy=(avg_trajectory[mid_point, 0], avg_trajectory[mid_point, 1]),
-                 xytext=(10, 10), textcoords='offset points',
-                 arrowprops=dict(arrowstyle="->"))
-    
-    # Adjust the plot limits to zoom in
-    x_range = np.max(avg_trajectory[:, 0]) - np.min(avg_trajectory[:, 0])
-    y_range = np.max(avg_trajectory[:, 1]) - np.min(avg_trajectory[:, 1])
-    plt.xlim(np.min(avg_trajectory[:, 0]) - 0.1*x_range, np.max(avg_trajectory[:, 0]) + 0.1*x_range)
-    plt.ylim(np.min(avg_trajectory[:, 1]) - 0.1*y_range, np.max(avg_trajectory[:, 1]) + 0.1*y_range)
-    
-    plt.savefig('zoomed_trajectory_with_confidence_intervals.png')
-    plt.close()
-
-# Run the analysis
-analyze_trajectories1(data)
 
 def smooth_trajectory(trajectory, window_length=11, polyorder=3):
     """
@@ -161,6 +41,9 @@ def analyze_trajectories2(data):
     data_meters = np.zeros((num_trajectories, num_points, 2))
     for i in range(num_trajectories):
         data_meters[i, :, 0], data_meters[i, :, 1] = lat_lon_to_meters(data[i, :, 1], data[i, :, 0], ref_lat, ref_lon)
+    
+    # Save the data converted to meters
+    np.save('downsampled_trajectory1_meters.npy', data_meters)
     
     # Calculate statistics for each time stamp
     avg_trajectory = np.mean(data_meters, axis=0)
@@ -237,9 +120,6 @@ def analyze_trajectories2(data):
     plt.close()
 
     return avg_trajectory_smooth, median_trajectory_smooth, lower_bound_smooth, upper_bound_smooth
-
-# Run the analysis
-avg_trajectory, median_trajectory, lower_bound, upper_bound = analyze_trajectories2(data)
 
 def analyze_trajectories3(data):
     num_trajectories, num_points, _ = data.shape
@@ -328,7 +208,6 @@ def analyze_trajectories3(data):
     return mean_trajectory, median_trajectory, lower_trajectory, upper_trajectory
 
 # Run the analysis
-mean_trajectory, median_trajectory, lower_trajectory, upper_trajectory = analyze_trajectories3(data)
 
 def analyze_trajectories4(data):
     num_trajectories, num_points, _ = data.shape
@@ -423,4 +302,3 @@ def analyze_trajectories4(data):
     return avg_trajectory, lower_trajectory_percentile, upper_trajectory_percentile, lower_trajectory_std, upper_trajectory_std
 
 # Run the analysis
-avg_trajectory, lower_percentile, upper_percentile, lower_std, upper_std = analyze_trajectories4(data)
