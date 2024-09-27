@@ -2,9 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
-data = np.load('/home/junze/.jupyter/Digitaltesting/Ship_envre/datasettest_2.npy')
+data = np.load('/home/junze/.jupyter/Evaluation/denormalized_dataset1.npy')
 
-trajectory = data[0]
+trajectory = data
 
 t_original = np.arange(0, len(trajectory) * 9, 9)
 

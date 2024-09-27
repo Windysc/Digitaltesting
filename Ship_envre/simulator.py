@@ -36,7 +36,7 @@ class Simulator:
         self.Draft = 15.3
         self.x_g = 2.2230# center mass
         self.x_prop = -112 #propulsor position
-        self.force_prop_max = 1.6 * 10**6 # max porpulsor force
+        self.force_prop_max = 1.6 * 10**7 # max porpulsor force
         self.x_rudder = -115 # rudder position
         self.rudder_area = 68
 
@@ -57,7 +57,7 @@ class Simulator:
 
         ## Propulsor constants:
         self.D_prop = 7.2 # Diameter
-        self.n_prop = 1.6 # rotation
+        self.n_prop = 3.6 # rotation
 
         # some modes of simulator
         self.system_dynamics = 'complex'

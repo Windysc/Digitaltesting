@@ -93,10 +93,10 @@ def train(args):
     ts_list=[]
     ##Step3:obstacle
     ##
-    ob_turn_static=obstacle(id=1, lat=450, long=1300,  sp=0, cog=90,L=400, W=50, Direction=0,risk_range=500)
-    ob_turn_move=obstacle(id=3, lat=450, long=0, sp=8, cog=0,L=200, W=50, Direction=0,risk_range=500)
-    ob_line_static=obstacle(id=2, lat=0, long=1000, sp=0, cog=90,L=400, W=50, Direction=90,risk_range=500)
-    ob_line_move=obstacle(id=2, lat=-1000, long=1000, sp=9, cog=90,L=200, W=50, Direction=90,risk_range=500)
+    # ob_turn_static=obstacle(id=1, lat=450, long=1300,  sp=0, cog=90,L=400, W=50, Direction=0,risk_range=500)
+    # ob_turn_move=obstacle(id=3, lat=450, long=0, sp=8, cog=0,L=200, W=50, Direction=0,risk_range=500)
+    # ob_line_static=obstacle(id=2, lat=0, long=1000, sp=0, cog=90,L=400, W=50, Direction=90,risk_range=500)
+    # ob_line_move=obstacle(id=2, lat=-1000, long=1000, sp=9, cog=90,L=200, W=50, Direction=90,risk_range=500)
     ##
     
     if args.obst_id == 'line_static':
@@ -109,8 +109,8 @@ def train(args):
         ob_list=[ob_turn_move]
 
     ##Step4:destination
-    nt_line=navigation_target(lat = 0,long = 1750,direction=0,target_deviation_distance=200,target_deviation_direction=15)
-    nt_turn=navigation_target(lat = 750,long = 1500,direction=90,target_deviation_distance=200,target_deviation_direction=15)
+    # nt_line=navigation_target(lat = 0,long = 1750,direction=0,target_deviation_distance=200,target_deviation_direction=15)
+    # nt_turn=navigation_target(lat = 750,long = 1500,direction=90,target_deviation_distance=200,target_deviation_direction=15)
     ###################################
     if args.dest_id == 'line':
         nt = nt_line

@@ -7,35 +7,65 @@ from ship_data import ShipExperiment
 from simulator import Simulator
 
 class ShipEnv(Env):
-    def __init__(self, type='continuous', action_dim = 2, guideline_path='/home/junze/.jupyter/Digitaltesting/Ship_envre/datasettest_1.npy', mergeline_path='/home/junze/.jupyter/Digitaltesting/Ship_envre/datasettest_1.npy'):
+    def __init__(self, type='continuous', action_dim=2, 
+                 guideline_path='/home/junze/.jupyter/Train_VAE_full/data_f1x.npy', 
+                 mergeline_path='/home/junze/.jupyter/Train_VAE_full/data_f2x.npy'):
         self.type = type
         self.action_dim = action_dim
+        
+        # Define action and observation spaces for 'continuous' type
         if type == 'continuous':
-            self.action_space = spaces.Box(low=np.array([-1.0, -1.0]), high=np.array([1.0, 1.0]))
-            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]), high=np.array([150, np.pi, 5.0, 5.0, 2.0]))
-            self.init_space = spaces.Box(low=np.array([0, -0.2, -5.0, -5.0, -2.0]), high=np.array([150, 0.2, 5.0, 5.0, 2.0]))
+            self.action_space = spaces.Box(low=np.array([-5.0, -0.4]), high=np.array([5.0,0.4]))
+            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -20.0, -20.0, -2.0]), 
+                                                high=np.array([400.0, np.pi, 20.0, 20.0, 2.0]))
+            self.init_space = spaces.Box(low=np.array([0, 0.7, 8, 8, -0.2]), 
+                                         high=np.array([10, 0.9, 10, 10, 0.2]))
+        
+        # Load and process guideline and mergeline
+        self.guideline_raw = self.load_trajectory_data(guideline_path)
+        self.mergeline_raw = self.load_trajectory_data(mergeline_path)
+        
+        # Convert raw lat/lon data to meters
+        self.guideline_meters = self.convert_lat_lon_to_meters(self.guideline_raw)
+        self.mergeline_meters = self.convert_lat_lon_to_meters(self.mergeline_raw)
+        
+        # Calculate trajectory statistics
+        self.guideline_stats = self.calculate_trajectory_statistics(self.guideline_meters)
+        self.mergeline_stats = self.calculate_trajectory_statistics(self.mergeline_meters)
+        
+        # Store the mean and standard-deviation-based trajectories
+        self.mean_trajectory_guideline = self.guideline_stats["avg_trajectory"]
+        self.std_trajectory_guideline_lower = self.guideline_stats["lower_trajectory_std"]
+        self.std_trajectory_guideline_upper = self.guideline_stats["upper_trajectory_std"]
+        
+        self.mean_trajectory_mergeline = self.mergeline_stats["avg_trajectory"]
+        self.std_trajectory_mergeline_lower = self.mergeline_stats["lower_trajectory_std"]
+        self.std_trajectory_mergeline_upper = self.mergeline_stats["upper_trajectory_std"]
+        
         self.ship_data = None
-        self.guideline = self.load_guideline(guideline_path)
-        self.mergeline = self.load_guideline(guideline_path)
         self.name_experiment = None
         self.last_pos = np.zeros(3)
         self.last_action = np.zeros(self.action_dim)
         self.simulator = Simulator()
-        self.guideline = self.convert_lat_lon_to_meters(self.guideline)
-        self.mergeline = self.convert_lat_lon_to_meters(self.mergeline)
-        self.point_coming_ship = self.mergeline[0][0]
+        
+        # Set initial guideline and mergeline to their mean trajectories
+        self.guideline = self.mean_trajectory_guideline
+        self.mergeline = self.mean_trajectory_mergeline
+        self.point_coming_ship = self.mergeline[1]
         self.processed_guideline = self.process_guideline(self.guideline)
-        self.start_pos = self.guideline[0][0]
         self.borders = self.calculate_borders(self.guideline, self.mergeline)
         self.viewer = None
         self.test_performance = False
-        self.init_test_performance = (np.linspace(-2.2, -2.4, 10))
+        self.init_test_performance = np.linspace(-2.2, -2.4, 10)
         self.counter = 0
         self.single_step = 0
-        self.attacking_speed = 3   
-        
-    def load_guideline(self, npy_file):
-        # Load the guideline from a .npy file
+        self.start_pos = self.guideline[0]
+        self.times = np.arange(0, len(self.guideline), 1)
+        self.rewardmode = False
+        self.attacking_speed = self.cal_attacking_speed(self.times, self.single_step, self.mergeline)
+
+    def load_trajectory_data(self, npy_file):
+        # Load the guideline or mergeline from a .npy file
         data = np.load(npy_file, allow_pickle=True)  # Return the raw data for further processing
 
         if isinstance(data, np.ndarray):
@@ -48,56 +78,104 @@ class ShipEnv(Env):
             raise ValueError("Data must be a numpy array")
 
         return data
-    
-    def convert_lat_lon_to_meters(self, lat_lon_data):
-        def haversine(lat1, lon1, lat2, lon2):
-                R = 6371000  # Earth radius in meters
-                phi1 = np.radians(lat1)
-                phi2 = np.radians(lat2)
-                delta_phi = np.radians(lat2 - lat1)
-                delta_lambda = np.radians(lon2 - lon1)
-
-                a = np.sin(delta_phi / 2) ** 2 + np.cos(phi1) * np.cos(phi2) * np.sin(delta_lambda / 2) ** 2
-                c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-
-                return R * c
-
-            # Ensure lat_lon_data is a list of lists
-        if isinstance(lat_lon_data, np.ndarray):
-                lat_lon_data = lat_lon_data.tolist()
-
-        if not isinstance(lat_lon_data, list):
-                raise ValueError("Input data must be a list of lists")
-
-        meters_data = []
-
-        for segment in lat_lon_data:
-            if not isinstance(segment, list):
-                raise ValueError("Each segment must be a list of points")
-
-            segment_meters = []
-            for point in segment:
-                if isinstance(point, (list, tuple)) and len(point) == 2:
-                    segment_meters.append([point[0], point[1]])  # Directly append the points
-            else:
-                raise ValueError("Each point in a segment must be a list or tuple of two elements (longitude, latitude)")
-
-        if segment_meters:
-                meters_data.append(np.array(segment_meters))
-
-        return meters_data
-
-    def safe_distance(self, x, y):
-        return np.sqrt((x - self.point_coming_ship[0])**2 + (y - self.point_coming_ship[1])**2)
-
+               
     def process_guideline(self, guideline):
         # Process the guideline data to group every ten points into a different row
-        tenfold_guideline = []
-        for i in range(0, len(guideline), 10):
-            tenfold_guideline.append(guideline[i:i+10])
-        return np.array(tenfold_guideline, dtype=object)
+        folded_guideline = []
+        num_cols = 10
+        num_rows = int(len(guideline)//num_cols)
+
+
+        for i in range(0, len(guideline)):
+            row = i // num_cols
+            col = i % num_cols
+            if row <= num_rows:
+                folded_guideline.append(guideline[row*10+col])
+
+        # Reshape the list into rows of 10 elements each
+        return np.array(folded_guideline).reshape(-1, num_cols, 2)
+    
+    def convert_lat_lon_to_meters(self, lat_lon_data):
+        # Initialize an empty list to store the converted coordinates
+        meters_data = []
+        R = 6371000  # Earth's radius in meters
+
+        if len(lat_lon_data) == 0:
+            return np.array(meters_data)  # Return empty if no data
+
+        # Get the first point to define the origin
+        first_lon, first_lat = lat_lon_data[0]
+        first_lon_rad = np.radians(first_lon)
+        first_lat_rad = np.radians(first_lat)
+
+        origin_x = R * first_lon_rad * np.cos(first_lat_rad)
+        origin_y = R * first_lat_rad
+
+        for lon, lat in lat_lon_data:
+            lon_rad = np.radians(lon)
+            lat_rad = np.radians(lat)
+
+            x = R * lon_rad * np.cos(first_lat_rad) - origin_x
+            y = R * lat_rad - origin_y
+
+            meters_data.append([x, y])
+
+        return np.array(meters_data)
+    
+    def cal_attacking_speed(self, times, single_step, mergeline):
+        """
+        Calculate the speed at a specific time step using mergeline data.
+        Returns:
+        float: Speed at the specified time step
+        """
+        
+        print(f"Shape of times: {times.shape}")
+        print(f"Shape of mergeline: {mergeline.shape}")
+        print(f"single_step: {single_step}")
+        
+        # Ensure single_step is within bounds (including 0)
+        if single_step < 0 or single_step >= len(mergeline):
+            raise ValueError(f"single_step ({single_step}) is out of bounds for mergeline (length {len(mergeline)})")
+        
+        # Get target time from mergeline
+        target_time = mergeline[single_step, 0]  # Assuming the first column is time
+        print(f"Target time: {target_time}")
+        
+        # Find the index where time is closest to target_time
+        time_diff = np.abs(times - target_time)
+        time_index = np.argmin(time_diff)
+        
+        print(f"Closest time index: {time_index}")
+        
+        # Ensure we have at least two points to calculate speed
+        if time_index == 0:
+            start_index, end_index = 0, 1
+        elif time_index == len(times) - 1:
+            start_index, end_index = -2, -1
+        else:
+            start_index, end_index = time_index - 1, time_index
+        
+        # Calculate time difference
+        time_diff = times[end_index] - times[start_index]
+        
+        # Calculate distance difference (assuming second column of mergeline is position)
+        dist_diff = mergeline[end_index, 1] - mergeline[start_index, 1]
+        
+        # Calculate speed
+        if time_diff > 0:
+            speed = dist_diff / time_diff
+        else:
+            speed = 0  # Avoid division by zero
+        
+        return speed
 
     def calculate_trajectory_statistics(self, data_meters):
+        # Reshape the data_meters to 3D if it's not already
+        if data_meters.ndim == 2:
+            num_points = data_meters.shape[0]
+            # Reshape assuming a single trajectory of 'num_points' with 2D (x, y) coordinates
+            data_meters = data_meters.reshape(1, num_points, 2)
+
         # Calculate statistics for each time stamp
         avg_trajectory = np.mean(data_meters, axis=0)
         std_trajectory = np.std(data_meters, axis=0)
@@ -110,11 +188,13 @@ class ShipEnv(Env):
         lower_bound_std = avg_trajectory - 3 * std_trajectory
         upper_bound_std = avg_trajectory + 3 * std_trajectory
 
-        # Select trajectories closest to the bounds
+        # Find the trajectory closest to the statistical bounds
         def find_closest_trajectory(trajectories, target):
+            # Now, 'trajectories' should be 3D (num_trajectories, num_points, 2)
             distances = np.sum(np.sqrt(np.sum((trajectories - target)**2, axis=2)), axis=1)
             return trajectories[np.argmin(distances)]
 
+        # Find closest trajectories to bounds
         lower_trajectory_percentile = find_closest_trajectory(data_meters, lower_bound_percentile)
         upper_trajectory_percentile = find_closest_trajectory(data_meters, upper_bound_percentile)
         lower_trajectory_std = find_closest_trajectory(data_meters, lower_bound_std)
@@ -163,28 +243,29 @@ class ShipEnv(Env):
         ])
 
         return borders
-
-
-
+    
+    def safe_distance(self, x1, y1, x2, y2):
+        return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+    
     def step(self, action):
         # According to the action space a different kind of action is selected
         if self.type == 'continuous' and self.action_dim == 2:
             angle_action = action[0]
-            rot_action = (action[1] + 1) / 10
-                     
+            rot_action = (action[1] + 1) / 10            
         state_prime = self.simulator.step(angle_level=angle_action, rot_level=rot_action)
         # convert simulator states into observable states
         obs = self.convert_state(state_prime)
         # print('Observed state: ', obs)
         dn = self.end(state_prime=state_prime, obs=obs)
         rew = self.calculate_reward(obs=obs)
-        self.point_coming_ship = [self.mergeline[self.single_step][0][0], self.mergeline[self.single_step][0][1]]
+        self.point_coming_ship = self.mergeline[self.single_step+1]
         self.single_step += 1
         self.last_pos = [state_prime[0], state_prime[1], state_prime[2]]
         self.last_action = np.array([angle_action, rot_action])
-        tcpa, dcpa, cr = self.calculate_safety_method(state_prime)
+        # tcpa, dcpa, cr = self.calculate_safety_method(state_prime)
         otherstates = self.point_coming_ship
-        rewardmode = int(np.sqrt((self.last_pos[0] - self.point_coming_ship[0])**2 + (self.last_pos[1] - self.point_coming_ship[1])**2) - 150)
+        print('obs=',obs)
+        rewardmode = bool(np.sqrt((self.last_pos[0] - self.point_coming_ship[0])**2 + (self.last_pos[1] - self.point_coming_ship[1])**2) - 150)
         if self.ship_data is not None:
             self.ship_data.new_transition(state_prime, obs, self.last_action, rew, otherstates, rewardmode, tcpa, dcpa, cr)
         info = dict()
@@ -197,45 +278,55 @@ class ShipEnv(Env):
         cr = self.cr_cal(tcpa, dcpa, 2000, np.sqrt(state_prime[3]**2 + state_prime[4]**2), 0.2)
         return tcpa, dcpa, cr
 
-    def calculate_distance_to_guideline(self, point):
-        ship_point = point
-        # Use the tenfold guideline data at the current time step
-        step_index = self.single_step // 10  # Ensure the index is an integer
-        d = ship_point.distance(LineString(self.guideline[step_index]))  
+    def calculate_distance_to_guideline(self, x, y):
+        ship_point = Point(x, y)
+        
+        # Use the current time step
+        step_index = self.single_step
+        
+        # Check if we have enough guideline points
+        if step_index + 1 >= len(self.guideline):
+            print(f"Warning: step_index ({step_index}) is out of bounds for guideline (length {len(self.guideline)})")
+            return 0.0  
+        
+        # Create a line segment from two consecutive guideline points
+        process_guideline = self.processed_guideline
+        start_point = Point(process_guideline[step_index//10][0][0], process_guideline[step_index//10][0][1])
+        end_point = Point(process_guideline[(step_index+1)//10][9][0], process_guideline[(step_index+1)//10][9][1])
+        
+        guideline_segment = LineString([start_point, end_point])
+        
+        # Calculate the distance
+        d = ship_point.distance(guideline_segment)
+        
         return d
     
+    
     def convert_state(self, state):
-        """
-        This method generated the features used to build the reward function
-        :param state: Global state of the ship
-        """
-        ship_point = Point((state[0], state[1]))
-        d = self.calculate_distance_to_guideline(ship_point)  # meters
+        d = self.calculate_distance_to_guideline(state[0], state[1])  
         theta = state[2]  # radians
         vx = state[3]  # m/s
         vy = state[4]  # m/s
         thetadot = state[5]  # graus/min
-        obs = np.array([d, theta, vx, vy, thetadot], dtype=object)
+        obs = np.array([d, theta, vx, vy, thetadot])
         return obs
 
     def calculate_reward(self, obs):
         d, theta, vx, vy, thetadot = obs[0], obs[1]*180/np.pi, obs[2], obs[3], obs[4]*180/np.pi
-        if self.last_pos[0] > 1800 or self.last_pos[1] > 1800:
-            return 0
-        if self.safe_distance(self.last_pos[0], self.last_pos[1]) < 80:
-            return 1000
-        if np.sqrt((self.last_pos[0]-self.point_coming_ship[0])**2+(self.last_pos[1]-self.point_coming_ship[1])**2)>200:
-            return 2*(1-(d/300))+0.33*(1-4/3*np.pi*abs(theta*np.pi/180-np.pi/4))+0.33*(0.5*(abs(vx)/6+abs(vy)/6))+0.33*(1-abs(thetadot)/0.4)
-        if np.sqrt((self.last_pos[0]-self.point_coming_ship[0])**2+(self.last_pos[1]-self.point_coming_ship[1])**2)<200:
+        if not self.observation_space.contains(obs):
+            return -1000
+        if not self.rewardmode:
+            return 2*(1-(d/300))
+        if self.rewardmode:
             return 2+10*(1-np.sqrt((self.last_pos[0]-self.point_coming_ship[0])**2+(self.last_pos[1]-self.point_coming_ship[1])**2)/200)
         
+    def set_init_space(self, low, high):
+        self.init_space = spaces.Box(low=np.array(low), high=np.array(high))
+             
     def end(self, state_prime, obs):
-        if not self.observation_space.contains(obs) or self.safe_distance(self.last_pos[0], self.last_pos[1]) < 80:
+        if not self.observation_space.contains(obs):
             if not self.observation_space.contains(obs):
                 print("\n Smashed")
-                print(obs)
-            if self.safe_distance(self.last_pos[0], self.last_pos[1]) < 80:
-                print("\n Too close and generation complete")
             if self.viewer is not None:
                 self.viewer.end_episode()
             if self.ship_data is not None:
@@ -244,9 +335,7 @@ class ShipEnv(Env):
             return True
         else:
             return False
-        
-    def set_init_space(self, low, high):
-        self.init_space = spaces.Box(low=np.array(low), high=np.array(high))
+
      
     def dcpa_cal(self, vx1, vy1, x1, y1, x2):
         k = vy1 / vx1
@@ -284,27 +373,28 @@ class ShipEnv(Env):
         return np.exp((dcpa + v * tcpa) * np.log(CRal) / dr)
     
     def reset(self):
-        init = list(map(float, self.init_space.sample()))
+        # Additional reset logic
+        init = list(map(float, self.init_space.sample())) 
         if self.test_performance:
             angle = self.init_test_performance[self.counter]
             v_lon = 3
-            init_states = np.array([self.start_pos[0], 5, angle, v_lon * np.cos(angle), v_lon * np.sin(angle), 0])
+            init_states = np.array([self.start_pos, 5, angle, v_lon * np.cos(angle), v_lon * np.sin(angle), 0])
             self.counter += 1
             init[0] = 0
             init[1] = angle
         else:
             init_states = np.array([self.start_pos[0], init[0], init[1], init[2] * np.cos(init[1]), init[2] * np.sin(init[1]), 0])
         self.simulator.reset_start_pos(init_states)
-        self.last_pos = np.array([self.start_pos[0], init[0],  init[1]])
-        self.point_coming_ship = [self.mergeline[0][0][0], self.mergeline[0][0][1]]
-        state1 = self.simulator.get_state()
-        print('Reseting position')
+        self.last_pos = np.array([self.start_pos, init[0], init[1]], dtype=object)
+        self.point_coming_ship = [self.mergeline[0]]
         state = self.simulator.get_state()
-        tcpa = self.tcpa_cal(state1[3], state1[4], state1[0], state1[1], self.point_coming_ship[0])
-        dcpa = self.dcpa_cal(state1[3], state1[4], state1[0], state1[1], self.point_coming_ship[0])
-        cr = self.cr_cal(dcpa, tcpa, 2000, np.sqrt(state1[3] ** 2 + state1[4] ** 2), 0.3)
+        self.single_step = 0
+        print('Reseting position')
+        # tcpa = self.tcpa_cal(state1[3], state1[4], state1[0], state1[1], self.point_coming_ship[0])
+        # dcpa = self.dcpa_cal(state1[3], state1[4], state1[0], state1[1], self.point_coming_ship[0])
+        # cr = self.cr_cal(dcpa, tcpa, 2000, np.sqrt(state1[3] ** 2 + state1[4] ** 2), 0.3)
         otherstates = self.point_coming_ship
-        rewardmode = int(np.sqrt((self.last_pos[0]-self.point_coming_ship[0])**2+(self.last_pos[1]-self.point_coming_ship[1])**2)-300)
+        rewardmode = 1
         if self.ship_data is not None:
             if self.ship_data.iterations > 0:
                 self.ship_data.save_experiment(self.name_experiment)
@@ -312,17 +402,42 @@ class ShipEnv(Env):
         if self.viewer is not None:
             self.viewer.end_episode()
         return self.convert_state(state)
+    
+    def render(self, mode='human'):
+        if self.viewer is None:
+            self.viewer = Viewer()
+            self.viewer.plot_boundary(self.borders)
+            self.viewer.plot_guidance_line(self.point_a, self.point_b)
+
+        img_x_pos = self.last_pos[0] - self.point_b[0] * (self.last_pos[0] // self.point_b[0])
+        if self.last_pos[0]//self.point_b[0] > self.number_loop:
+            self.viewer.end_episode()
+            self.viewer.plot_position(img_x_pos, self.last_pos[1], self.last_pos[2], 20 * self.last_action[0])
+            self.viewer.restart_plot()
+            self.number_loop += 1
+        else:
+            self.viewer.plot_position(img_x_pos, self.last_pos[1], self.last_pos[2], 20 * self.last_action[0])
+
+    def close(self, ):
+        self.viewer.freeze_scream()
+
+    def set_save_experice(self, name='experiment_ssn_ppo_10iter'):
+        assert type(name) == type(""), 'name must be a string'
+        self.ship_data = ShipExperiment()
+        self.name_experiment = name
+
+    def set_test_performance(self):
+        self.test_performance = True
 
 
 if __name__ == '__main__':
-    mode = 'test'  
+    mode = 'train'  
     if mode == 'train':
         env = ShipEnv()
         ShipExp = ShipExperiment()
         for i_episode in range(10):
             obs = env.reset()
             for t in range(10000):
-                env.render()
                 action, _states = model.predict(obs, deterministic=True)
                 obs, reward, done, info = env.step(action)
                 if done:
@@ -331,9 +446,9 @@ if __name__ == '__main__':
         env.close()
     elif mode == 'test':
         env = ShipEnv()
-        obs = env.reset()
         for t in range(50):
-            action = env.action_space.sample()  
+            obs = env.reset()
+            action, _states = model.predict(obs, deterministic=True)
             obs, reward, done, info = env.step(action)
             print(f"Step {t + 1}: obs={obs}, reward={reward}, done={done}, info={info}")
             if done:
