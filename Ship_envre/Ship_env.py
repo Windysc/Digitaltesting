@@ -8,18 +8,18 @@ from simulator import Simulator
 
 class ShipEnv(Env):
     def __init__(self, type='continuous', action_dim=2, 
-                 guideline_path='/home/junze/.jupyter/Train_VAE_full/data_f1x.npy', 
-                 mergeline_path='/home/junze/.jupyter/Train_VAE_full/data_f2x.npy'):
+                 guideline_path='/home/junze/.jupyter/Train_VAE_full/dataset_1.csv.npy', 
+                 mergeline_path='/home/junze/.jupyter/Train_VAE_full/dataset_2.csv.npy'):
         self.type = type
         self.action_dim = action_dim
         
         # Define action and observation spaces for 'continuous' type
         if type == 'continuous':
-            self.action_space = spaces.Box(low=np.array([-5.0, -0.4]), high=np.array([5.0,0.4]))
-            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -20.0, -20.0, -2.0]), 
-                                                high=np.array([400.0, np.pi, 20.0, 20.0, 2.0]))
-            self.init_space = spaces.Box(low=np.array([0, 0.7, 8, 8, -0.2]), 
-                                         high=np.array([10, 0.9, 10, 10, 0.2]))
+            self.action_space = spaces.Box(low=np.array([-0.5, 1.0]), high=np.array([1.0, 3.0]), dtype=np.float32)
+            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]), 
+                                                high=np.array([1000.0, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
+            self.init_space = spaces.Box(low=np.array([0, 0.420, 2.0, 1.0, -0.1]), 
+                                         high=np.array([1, 0.430, 2.2, 1.1, 0.2]))
         
         # Load and process guideline and mergeline
         self.guideline_raw = self.load_trajectory_data(guideline_path)
@@ -82,7 +82,7 @@ class ShipEnv(Env):
     def process_guideline(self, guideline):
         # Process the guideline data to group every ten points into a different row
         folded_guideline = []
-        num_cols = 10
+        num_cols = 20
         num_rows = int(len(guideline)//num_cols)
 
 
@@ -90,7 +90,7 @@ class ShipEnv(Env):
             row = i // num_cols
             col = i % num_cols
             if row <= num_rows:
-                folded_guideline.append(guideline[row*10+col])
+                folded_guideline.append(guideline[row*num_cols+col])
 
         # Reshape the list into rows of 10 elements each
         return np.array(folded_guideline).reshape(-1, num_cols, 2)
@@ -115,8 +115,8 @@ class ShipEnv(Env):
             lon_rad = np.radians(lon)
             lat_rad = np.radians(lat)
 
-            x = R * lon_rad * np.cos(first_lat_rad) - origin_x
-            y = R * lat_rad - origin_y
+            x = np.abs(R * lon_rad * np.cos(first_lat_rad) - origin_x)
+            y = np.abs(R * lat_rad - origin_y)
 
             meters_data.append([x, y])
 
@@ -251,7 +251,7 @@ class ShipEnv(Env):
         # According to the action space a different kind of action is selected
         if self.type == 'continuous' and self.action_dim == 2:
             angle_action = action[0]
-            rot_action = (action[1] + 1) / 10            
+            rot_action = (action[1]+1)/10             
         state_prime = self.simulator.step(angle_level=angle_action, rot_level=rot_action)
         # convert simulator states into observable states
         obs = self.convert_state(state_prime)
@@ -265,7 +265,9 @@ class ShipEnv(Env):
         # tcpa, dcpa, cr = self.calculate_safety_method(state_prime)
         otherstates = self.point_coming_ship
         print('obs=',obs)
-        rewardmode = bool(np.sqrt((self.last_pos[0] - self.point_coming_ship[0])**2 + (self.last_pos[1] - self.point_coming_ship[1])**2) - 150)
+        print('state_prime=',state_prime)
+        print('reward=',rew)
+        rewardmode = bool(np.sqrt((self.last_pos[0] - self.point_coming_ship[0])**2 + (self.last_pos[1] - self.point_coming_ship[1])**2) - 1500)
         if self.ship_data is not None:
             self.ship_data.new_transition(state_prime, obs, self.last_action, rew, otherstates, rewardmode, tcpa, dcpa, cr)
         info = dict()
@@ -277,12 +279,17 @@ class ShipEnv(Env):
         dcpa = self.dcpa_cal(state_prime[3], state_prime[4], state_prime[0], state_prime[1], self.point_coming_ship[0])
         cr = self.cr_cal(tcpa, dcpa, 2000, np.sqrt(state_prime[3]**2 + state_prime[4]**2), 0.2)
         return tcpa, dcpa, cr
-
+    
+    def judging_area(self, x, y):
+        i = 0 
+        if (x > self.guideline[i][0]) and y > (self.guideline[i][1]):
+                i += 1  
+        return i
+        
     def calculate_distance_to_guideline(self, x, y):
         ship_point = Point(x, y)
         
-        # Use the current time step
-        step_index = self.single_step
+        step_index = self.judging_area(x, y)
         
         # Check if we have enough guideline points
         if step_index + 1 >= len(self.guideline):
@@ -291,8 +298,8 @@ class ShipEnv(Env):
         
         # Create a line segment from two consecutive guideline points
         process_guideline = self.processed_guideline
-        start_point = Point(process_guideline[step_index//10][0][0], process_guideline[step_index//10][0][1])
-        end_point = Point(process_guideline[(step_index+1)//10][9][0], process_guideline[(step_index+1)//10][9][1])
+        start_point = Point(process_guideline[step_index//20][0][0], process_guideline[step_index//20][0][1])
+        end_point = Point(process_guideline[(step_index+1)//20][19][0], process_guideline[(step_index+1)//20][19][1])
         
         guideline_segment = LineString([start_point, end_point])
         
@@ -300,8 +307,7 @@ class ShipEnv(Env):
         d = ship_point.distance(guideline_segment)
         
         return d
-    
-    
+
     def convert_state(self, state):
         d = self.calculate_distance_to_guideline(state[0], state[1])  
         theta = state[2]  # radians
@@ -316,7 +322,7 @@ class ShipEnv(Env):
         if not self.observation_space.contains(obs):
             return -1000
         if not self.rewardmode:
-            return 2*(1-(d/300))
+            return abs((1-(d/1000)))*(1-(d/1000))
         if self.rewardmode:
             return 2+10*(1-np.sqrt((self.last_pos[0]-self.point_coming_ship[0])**2+(self.last_pos[1]-self.point_coming_ship[1])**2)/200)
         
@@ -327,6 +333,7 @@ class ShipEnv(Env):
         if not self.observation_space.contains(obs):
             if not self.observation_space.contains(obs):
                 print("\n Smashed")
+                print("steps: ", self.single_step)
             if self.viewer is not None:
                 self.viewer.end_episode()
             if self.ship_data is not None:
@@ -431,7 +438,7 @@ class ShipEnv(Env):
 
 
 if __name__ == '__main__':
-    mode = 'train'  
+    mode = 'test'  
     if mode == 'train':
         env = ShipEnv()
         ShipExp = ShipExperiment()
@@ -446,12 +453,7 @@ if __name__ == '__main__':
         env.close()
     elif mode == 'test':
         env = ShipEnv()
-        for t in range(50):
-            obs = env.reset()
-            action, _states = model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)
-            print(f"Step {t + 1}: obs={obs}, reward={reward}, done={done}, info={info}")
-            if done:
-                print("Test finished after {} timesteps".format(t + 1))
-                break
-        env.close()
+        Simulator = Simulator()
+        Simulator.test_straight_line_motion()
+        Simulator.test_various_scenarios()
+        Simulator.test_turning_scenario(initial_state=[0, 0, 0, 5, 0, 0], rudder_angle=0.1, propulsion=1)

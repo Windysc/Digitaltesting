@@ -51,7 +51,7 @@ class Simulator:
         self.mi = 10**-3  # water viscosity
 
         ## Rudder Constants
-        self.A_rud = 68 # propulsor thrus
+        self.A_rud = 80 # propulsor thrus
         self.delta_x = self.x_prop - self.x_rudder  # distance between rudder and propulsor
         self.r_aspect = 2 # aspect ration
 
@@ -288,3 +288,103 @@ class Simulator:
         B_g_pos = np.dot(A, B_l_pos.transpose())
         B_g_vel = np.dot(A, B_l_vel.transpose())
         return np.array([B_g_pos[0], B_g_pos[1], local_states[2], B_g_vel[0], B_g_vel[1], local_states[5]])#
+    
+    def test_straight_line_motion(self):
+        # Set initial conditions for straight line motion
+        initial_state = np.array([0, 0, np.pi/4, 10, 10, 0])  # 45-degree angle, speed of 14.14 m/s
+        self.reset_start_pos(initial_state)
+        
+        # Run simulation for 10 steps
+        for _ in range(10):
+            next_state = self.step(0, 0.5)  # No rudder angle, half propulsion
+            
+            # Check if velocity components are positive
+            assert next_state[3] > 0, f"vx should be positive, got {next_state[3]}"
+            assert next_state[4] > 0, f"vy should be positive, got {next_state[4]}"
+            
+            print(f"Position: ({next_state[0]:.2f}, {next_state[1]:.2f}), "
+                f"Velocity: ({next_state[3]:.2f}, {next_state[4]:.2f})")
+            
+    def test_various_scenarios(self):
+        scenarios = [
+            ("Straight line", np.array([0, 0, np.pi/4, 10, 10, 0]), 0, 0.5),
+            ("Turn right", np.array([0, 0, 0, 20, 0, 0]), np.pi/6, 0.5),
+            ("Deceleration", np.array([0, 0, np.pi/2, 0, 20, 0]), 0, -0.5),
+        ]
+        
+        for name, initial_state, rudder_angle, propulsion in scenarios:
+            print(f"\nTesting scenario: {name}")
+            self.reset_start_pos(initial_state)
+            velocity_log = []
+            
+            for step in range(20):
+                next_state = self.step(rudder_angle, propulsion)
+                velocity_log.append((next_state[3], next_state[4]))
+                
+                print(f"Step {step + 1}:")
+                print(f"  Position: ({next_state[0]:.2f}, {next_state[1]:.2f})")
+                print(f"  Velocity: ({next_state[3]:.2f}, {next_state[4]:.2f})")
+                print(f"  Angle: {next_state[2]:.2f}")
+            
+            print(f"\nFinal position: ({next_state[0]:.2f}, {next_state[1]:.2f})")
+            print(f"Final velocity: ({next_state[3]:.2f}, {next_state[4]:.2f})")
+            print(f"Final angle: {next_state[2]:.2f}")  
+
+    def check_turning_parameters(self):
+        print("Checking parameters relevant to turning behavior:")
+        print(f"1. Rudder-related parameters:")
+        print(f"   - Rudder area (A_rud): {self.A_rud} m²")
+        print(f"   - Rudder position (x_rudder): {self.x_rudder} m")
+        print(f"   - Aspect ratio (r_aspect): {self.r_aspect}")
+        print(f"   - Distance between rudder and propulsor (delta_x): {self.delta_x} m")
+        
+        print(f"\n2. Ship geometry:")
+        print(f"   - Length (L): {self.L} m")
+        print(f"   - Beam (B): {self.B} m")
+        print(f"   - Draft: {self.Draft} m")
+        print(f"   - Block coefficient (Cb): {self.Cb}")
+        
+        print(f"\n3. Mass and inertia:")
+        print(f"   - Mass (M): {self.M/1e6:.2f} × 10⁶ kg")
+        print(f"   - Moment of inertia (Iz): {self.Iz/1e9:.2f} × 10⁹ kg·m²")
+        
+        print(f"\n4. Hydrodynamic coefficients:")
+        print(f"   - M22: {self.M22/1e6:.2f} × 10⁶ kg")
+        print(f"   - M26: {self.M26/1e6:.2f} × 10⁶ kg·m")
+        print(f"   - M66: {self.M66/1e9:.2f} × 10⁹ kg·m²")
+        print(f"   - D22: {self.D22/1e3:.2f} × 10³ kg/s")
+        print(f"   - D26: {self.D26/1e3:.2f} × 10³ kg·m/s")
+        print(f"   - D66: {self.D66/1e3:.2f} × 10³ kg·m²/s")
+        
+        print(f"\n5. Propulsion parameters:")
+        print(f"   - Propeller diameter (D_prop): {self.D_prop} m")
+        print(f"   - Nominal propeller rotation (n_prop): {self.n_prop} rps")
+        print(f"   - Max propulsor force: {self.force_prop_max/1e6:.2f} × 10⁶ N")
+        
+        print(f"\n6. Simulation settings:")
+        print(f"   - System dynamics mode: {self.system_dynamics}")
+        print(f"   - Propulsion dynamics mode: {self.prop_dynamics}")
+        print(f"   - Runge-Kutta mode: {self.rk_mode}")
+
+    def test_turning_scenario(self, initial_state, rudder_angle, propulsion, steps=100):
+        print(f"\nTesting turning scenario:")
+        print(f"Initial state: {initial_state}")
+        print(f"Rudder angle: {rudder_angle} rad")
+        print(f"Propulsion: {propulsion}")
+        
+        self.reset_start_pos(initial_state)
+        
+        for step in range(steps):
+            next_state = self.step(rudder_angle, propulsion)
+            if step % 10 == 0:  # Print every 10th step to reduce output
+                print(f"\nStep {step}:")
+                print(f"  Position: ({next_state[0]:.2f}, {next_state[1]:.2f})")
+                print(f"  Velocity: ({next_state[3]:.2f}, {next_state[4]:.2f})")
+                print(f"  Angle: {next_state[2]:.2f}")
+                print(f"  Angular velocity: {next_state[5]:.4f}")
+        
+        print(f"\nFinal state:")
+        print(f"  Position: ({next_state[0]:.2f}, {next_state[1]:.2f})")
+        print(f"  Velocity: ({next_state[3]:.2f}, {next_state[4]:.2f})")
+        print(f"  Angle: {next_state[2]:.2f}")
+        print(f"  Angular velocity: {next_state[5]:.4f}")
