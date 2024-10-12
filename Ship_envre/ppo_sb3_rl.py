@@ -4,6 +4,7 @@ import tensorboard
 import tensorflow as tf
 import tqdm
 import matplotlib.pyplot as plt
+import os
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
@@ -11,7 +12,7 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.logger import configure
 
 from Ship_env import ShipEnv
-from ship_data import ShipExperiment
+from ship_data_vis import ShipExperiment
 from viewer import Viewer
 
 class RewardLoggingCallback(BaseCallback):
@@ -32,6 +33,106 @@ class RewardLoggingCallback(BaseCallback):
 
 # Use the callback during training
 callback = RewardLoggingCallback()
+
+def run_evaluation_and_visualize(env, model, num_episodes=10):
+    env.enable_evaluation_mode()
+    
+    for episode in range(num_episodes):
+        obs = env.reset()
+        done = False
+        total_reward = 0
+        steps = 0
+        
+        while not done:
+            action, _states = model.predict(obs, deterministic=True)
+            obs, reward, done, info = env.step(action)
+            total_reward += reward
+            steps += 1
+        
+        print(f"Episode {episode+1} completed. Steps: {steps}, Total Reward: {total_reward}")
+    
+    env.save_evaluation_data()
+    
+    # Load the saved data
+    eval_data = ShipExperiment()
+    try:
+        eval_data.load_from_experiment("/home/junze/_experiments/2024-10-11-12final_evaluation_data")
+    except FileNotFoundError:
+        print("Evaluation data file not found. Make sure the file was saved correctly.")
+        return
+    
+    # Create a directory to save plots
+    plot_dir = "evaluation_plots"
+    os.makedirs(plot_dir, exist_ok=True)
+    
+    # Visualize the data
+    try:
+        for i in range(eval_data.iterations + 1):
+            visualize_episode_data(eval_data, i, plot_dir)
+    except Exception as e:
+        print(f"Error during visualization: {str(e)}")
+
+def visualize_episode_data(eval_data, episode, plot_dir):
+    """Visualize data for a single episode, saving plots as image files."""
+    try:
+        # Plot trajectory
+        states = np.array(eval_data.states[episode])
+        other_states = np.array(eval_data.otherstates[episode])
+        
+        if len(states) != len(other_states):
+            print(f"Warning: Mismatch in data lengths for episode {episode}. Trimming to shorter length.")
+            min_len = min(len(states), len(other_states))
+            states = states[:min_len]
+            other_states = other_states[:min_len]
+        
+        plt.figure(figsize=(10, 8))
+        plt.plot(states[:, 0], states[:, 1], label='Vessel')
+        plt.plot(other_states[:, 0], other_states[:, 1], label='Objective Vessel')
+        plt.legend()
+        plt.title(f'Trajectory - Episode {episode}')
+        plt.xlabel('X position')
+        plt.ylabel('Y position')
+        plt.savefig(os.path.join(plot_dir, f'trajectory_episode_{episode}.png'))
+        plt.close()
+        
+        # Plot actions
+        actions = np.array(eval_data.actions[episode])
+        plt.figure(figsize=(10, 6))
+        for i in range(actions.shape[1]):
+            plt.plot(actions[:, i], label=f'Action {i+1}')
+        plt.legend()
+        plt.title(f'Actions - Episode {episode}')
+        plt.xlabel('Step')
+        plt.ylabel('Action Value')
+        plt.savefig(os.path.join(plot_dir, f'actions_episode_{episode}.png'))
+        plt.close()
+        
+        # Plot reward
+        rewards = np.array(eval_data.rewards[episode])
+        plt.figure(figsize=(10, 6))
+        plt.plot(rewards)
+        plt.title(f'Reward - Episode {episode}')
+        plt.xlabel('Step')
+        plt.ylabel('Reward')
+        plt.savefig(os.path.join(plot_dir, f'reward_episode_{episode}.png'))
+        plt.close()
+        
+        # Plot observations
+        observations = np.array(eval_data.observations[episode])
+        plt.figure(figsize=(12, 8))
+        for i in range(observations.shape[1]):
+            plt.plot(observations[:, i], label=f'Obs {i+1}')
+        plt.legend()
+        plt.title(f'Observations - Episode {episode}')
+        plt.xlabel('Step')
+        plt.ylabel('Observation Value')
+        plt.savefig(os.path.join(plot_dir, f'observations_episode_{episode}.png'))
+        plt.close()
+        
+        print(f"Plots for episode {episode} saved in {plot_dir}")
+        
+    except Exception as e:
+        print(f"Error visualizing data for episode {episode}: {str(e)}")
 
 # class VisualShipEnv(ShipEnv):
 #     def __init__(self):
@@ -58,31 +159,21 @@ print("Model's action space:", model.action_space)
 
 print("Environment's action space:", env.action_space)
 
-model.learn(total_timesteps=int(5e5), progress_bar=True, callback=callback)
-
-model.save("ppo_ship ship2")
-
-del model  # delete trained model to demonstrate loading
-
-model = PPO.load("ppo_ship ship1", env=env)    
-
-mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=10)
-
-print(f"Mean reward: {mean_reward:.2f} +/- {std_reward:.2f}")
-
 
 if __name__ == '__main__':
     mode = 'train'
     if mode == 'train':
-        for i in range(1000):
             obs = env.reset()
-            if not done:
-                action, _states = model.predict(obs, deterministic=True)
-                obs, reward, done, info = env.step(action)
-        print('Training Done')
+            action, _states = model.predict(obs, deterministic=True)
+            obs, reward, done, info = env.step(action)
+            model.learn(total_timesteps=int(1e5), progress_bar=True, callback=callback)
+            model.save("ppo_ship ship9")
+            print('Training Done')
     elif mode == 'eval':
         env.set_test_performance()
         env.set_save_experice()
+        model = PPO.load("ppo_ship ship8", env=env)
+        run_evaluation_and_visualize(env, model)
 
 
 

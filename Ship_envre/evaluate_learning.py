@@ -1,11 +1,11 @@
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
-from ship_data import ShipExperiment
+from ship_data_vis import ShipExperiment
 import matplotlib.animation as animation
 
-filename = 'ddpg__redetorcsTESTN6r_kit_rn4_maior2_mem20k_target01_theta3_batch32_adam2'
-with open('_experiments/history_' + filename+'.pickle', 'rb') as f:
+filename = '/home/junze/_experiments/2024-10-10-21final_evaluation_data'
+with open(filename) as f:
     hist = pickle.load(f)
 f.close()
 

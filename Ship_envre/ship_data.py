@@ -50,7 +50,7 @@ class ShipExperiment:
         self.otherstates[it] = other0
         self.rewardmode[it] = reward0
         self.guideline[it] = g0
-
+        
     def new_transition(self, s, obs, a, r, other, Rmode, guide):
         """
         Each transition pass a set of numpy  arrays to be saved

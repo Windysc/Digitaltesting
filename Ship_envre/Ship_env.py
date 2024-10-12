@@ -3,7 +3,7 @@ import numpy as np
 import sys
 from shapely.geometry import LineString, Point
 from viewer import Viewer
-from ship_data import ShipExperiment
+from ship_data_vis import ShipExperiment
 from simulator import Simulator
 
 class ShipEnv(Env):
@@ -15,11 +15,11 @@ class ShipEnv(Env):
         
         # Define action and observation spaces for 'continuous' type
         if type == 'continuous':
-            self.action_space = spaces.Box(low=np.array([-0.5, 1.0]), high=np.array([1.0, 3.0]), dtype=np.float32)
+            self.action_space = spaces.Box(low=np.array([-0.5, 0.2]), high=np.array([1.0, 1.0]), dtype=np.float32)
             self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]), 
                                                 high=np.array([1000.0, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
-            self.init_space = spaces.Box(low=np.array([0, 0.420, 2.0, 1.0, -0.1]), 
-                                         high=np.array([1, 0.430, 2.2, 1.1, 0.2]))
+            self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]), 
+                                         high=np.array([1, 0.46, 2.2, 1.1, 0.2]))
         
         # Load and process guideline and mergeline
         self.guideline_raw = self.load_trajectory_data(guideline_path)
@@ -56,13 +56,15 @@ class ShipEnv(Env):
         self.borders = self.calculate_borders(self.guideline, self.mergeline)
         self.viewer = None
         self.test_performance = False
-        self.init_test_performance = np.linspace(-2.2, -2.4, 10)
+        self.init_test_performance = np.linspace(0.45, 0.46, 10)
         self.counter = 0
         self.single_step = 0
         self.start_pos = self.guideline[0]
+        self.action_space_other = [0.0, 0.5]
+        self.other_ship_state = (0, -2.25, 2.0, 1.0, 0.0, 0.0)
         self.times = np.arange(0, len(self.guideline), 1)
         self.rewardmode = False
-        self.attacking_speed = self.cal_attacking_speed(self.times, self.single_step, self.mergeline)
+        self.attacking_speed = np.abs(self.cal_attacking_speed(self.times, self.single_step, self.mergeline))
 
     def load_trajectory_data(self, npy_file):
         # Load the guideline or mergeline from a .npy file
@@ -78,7 +80,43 @@ class ShipEnv(Env):
             raise ValueError("Data must be a numpy array")
 
         return data
-               
+    
+    def enable_evaluation_mode(self):
+        self.evaluation_mode = True
+        self.eval_data = ShipExperiment(info="Evaluation Run")
+        
+    def _ensure_experiment_directory(self):
+        """Ensure that the '_experiments' directory exists."""
+        os.makedirs('_experiments', exist_ok=True)
+
+    def save_experiment(self, descr='_experiment'):
+        """
+        Use this method save an experiment in .pickle format
+        """
+        self._ensure_experiment_directory()
+        st = datetime.datetime.now().strftime('%Y-%m-%d-%H')
+        name = f"{st}{descr}"
+        try:
+            with open(os.path.join('_experiments', name), 'wb') as f:
+                pickle.dump(self.__dict__, f, 2)
+            print(f"Experiment saved successfully: {name}")
+        except Exception as e:
+            print(f"Error saving experiment: {str(e)}")
+
+    def load_from_experiment(self, name):
+        """
+        Use this method to load an experiment from a .pickle format
+        """
+        try:
+            with open(os.path.join('_experiments', name), 'rb') as f:
+                tmp_dict = pickle.load(f)
+            self.__dict__.update(tmp_dict)
+            print(f"Experiment loaded successfully: {name}")
+        except FileNotFoundError:
+            print(f"Experiment file not found: {name}")
+        except Exception as e:
+            print(f"Error loading experiment: {str(e)}")
+            
     def process_guideline(self, guideline):
         # Process the guideline data to group every ten points into a different row
         folded_guideline = []
@@ -170,7 +208,6 @@ class ShipEnv(Env):
         return speed
 
     def calculate_trajectory_statistics(self, data_meters):
-        # Reshape the data_meters to 3D if it's not already
         if data_meters.ndim == 2:
             num_points = data_meters.shape[0]
             # Reshape assuming a single trajectory of 'num_points' with 2D (x, y) coordinates
@@ -214,7 +251,6 @@ class ShipEnv(Env):
                 # Flatten the list of arrays
                 return np.concatenate([np.array(subarr) for subarr in arr])
             elif isinstance(arr, np.ndarray) and arr.dtype == object:
-                # Flatten the numpy array of arrays
                 return np.concatenate([subarr for subarr in arr])
             else:
                 return np.array(arr)
@@ -247,29 +283,30 @@ class ShipEnv(Env):
     def safe_distance(self, x1, y1, x2, y2):
         return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
     
-    def step(self, action):
+    def step(self, action1):
         # According to the action space a different kind of action is selected
         if self.type == 'continuous' and self.action_dim == 2:
-            angle_action = action[0]
-            rot_action = (action[1]+1)/10             
+            angle_action = action1[0]
+            rot_action = (action1[1]+1)/10
+            angle_action_other = self.action_space_other[0]
+            rot_action_other = (self.action_space_other[1]+1)/10             
         state_prime = self.simulator.step(angle_level=angle_action, rot_level=rot_action)
-        # convert simulator states into observable states
+        self.other_ship_state = self.simulator.step(angle_level=angle_action_other, rot_level=rot_action_other)
+        self.point_coming_ship = [self.other_ship_state[0], self.other_ship_state[1]]
         obs = self.convert_state(state_prime)
-        # print('Observed state: ', obs)
         dn = self.end(state_prime=state_prime, obs=obs)
         rew = self.calculate_reward(obs=obs)
-        self.point_coming_ship = self.mergeline[self.single_step+1]
+        otherstates = self.point_coming_ship
         self.single_step += 1
         self.last_pos = [state_prime[0], state_prime[1], state_prime[2]]
         self.last_action = np.array([angle_action, rot_action])
         # tcpa, dcpa, cr = self.calculate_safety_method(state_prime)
-        otherstates = self.point_coming_ship
         print('obs=',obs)
         print('state_prime=',state_prime)
         print('reward=',rew)
         rewardmode = bool(np.sqrt((self.last_pos[0] - self.point_coming_ship[0])**2 + (self.last_pos[1] - self.point_coming_ship[1])**2) - 1500)
-        if self.ship_data is not None:
-            self.ship_data.new_transition(state_prime, obs, self.last_action, rew, otherstates, rewardmode, tcpa, dcpa, cr)
+        if hasattr(self, 'evaluation_mode') and self.evaluation_mode:
+            self.eval_data.new_transition(state_prime, obs, self.last_action, rew, otherstates, rewardmode, self.guideline_meters)
         info = dict()
         return obs, rew, dn, info
 
@@ -380,34 +417,41 @@ class ShipEnv(Env):
         return np.exp((dcpa + v * tcpa) * np.log(CRal) / dr)
     
     def reset(self):
-        # Additional reset logic
         init = list(map(float, self.init_space.sample())) 
         if self.test_performance:
             angle = self.init_test_performance[self.counter]
             v_lon = 3
-            init_states = np.array([self.start_pos, 5, angle, v_lon * np.cos(angle), v_lon * np.sin(angle), 0])
+            init_states = np.array([
+                self.start_pos[0], self.start_pos[1],  # x, y
+                angle,  # theta
+                v_lon * np.cos(angle), v_lon * np.sin(angle),  # vx, vy
+                0  # thetadot
+            ], dtype=float)
             self.counter += 1
-            init[0] = 0
-            init[1] = angle
         else:
-            init_states = np.array([self.start_pos[0], init[0], init[1], init[2] * np.cos(init[1]), init[2] * np.sin(init[1]), 0])
+            init_states = np.array([
+                self.start_pos[0], self.start_pos[1],  # x, y
+                init[1],  # theta
+                init[2] * np.cos(init[1]), init[2] * np.sin(init[1]),  # vx, vy
+                0  # thetadot
+            ], dtype=float)
+        self.single_step = 0
         self.simulator.reset_start_pos(init_states)
-        self.last_pos = np.array([self.start_pos, init[0], init[1]], dtype=object)
-        self.point_coming_ship = [self.mergeline[0]]
+        self.last_pos = np.array([init_states[0], init_states[1], init_states[2]])
+        self.point_coming_ship = self.mergeline[0]
         state = self.simulator.get_state()
         self.single_step = 0
-        print('Reseting position')
-        # tcpa = self.tcpa_cal(state1[3], state1[4], state1[0], state1[1], self.point_coming_ship[0])
-        # dcpa = self.dcpa_cal(state1[3], state1[4], state1[0], state1[1], self.point_coming_ship[0])
-        # cr = self.cr_cal(dcpa, tcpa, 2000, np.sqrt(state1[3] ** 2 + state1[4] ** 2), 0.3)
+        print('Resetting position')
         otherstates = self.point_coming_ship
-        rewardmode = 1
-        if self.ship_data is not None:
-            if self.ship_data.iterations > 0:
-                self.ship_data.save_experiment(self.name_experiment)
-            self.ship_data.new_iter(state, self.convert_state(state), np.zeros(len(self.last_action)), np.array([0]), otherstates, rewardmode, LineString([self.point_a, self.point_b]), tcpa, dcpa, cr)
+        rewardmode = 0
+        if hasattr(self, 'evaluation_mode') and self.evaluation_mode:
+            if self.eval_data.iterations > 0:
+                self.eval_data.save_experiment(f"eval_run_{self.eval_data.iterations}")
+            self.eval_data.new_iter(state, self.convert_state(state), np.zeros(self.action_dim), np.array([0]), otherstates, rewardmode, self.guideline_meters)
+
         if self.viewer is not None:
             self.viewer.end_episode()
+
         return self.convert_state(state)
     
     def render(self, mode='human'):
@@ -435,6 +479,10 @@ class ShipEnv(Env):
 
     def set_test_performance(self):
         self.test_performance = True
+    
+    def save_evaluation_data(self):
+        if hasattr(self, 'evaluation_mode') and self.evaluation_mode:
+            self.eval_data.save_experiment("final_evaluation_data")
 
 
 if __name__ == '__main__':

@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import matplotlib.pyplot as plt
 import pickle
 import time as t
@@ -27,8 +28,9 @@ class ShipExperiment:
         self.obs_states_str = {}
         self.time_step = 10
         self.rewardmode = {}
+        self.guideline = {}
 
-    def new_iter(self, s0, obs0, a0, r0, other0, reward0):
+    def new_iter(self, s0, obs0, a0, r0, other0, reward0, g0):
         """
         A new interaction create a new sublist of states, actions and rewards, it increase the interaction count and
         initialize the steps count
@@ -46,8 +48,9 @@ class ShipExperiment:
         self.rewards[it] = r0
         self.otherstates[it] = other0
         self.rewardmode[it] = reward0
+        self.guideline[it] = g0
 
-    def new_transition(self, s, obs, a, r, other, Rmode):
+    def new_transition(self, s, obs, a, r, other, Rmode, g0):
         """
         Each transition pass a set of numpy  arrays to be saved
         :param s: numpy array of state 0 ie: [Xabs Yabs Thetaabs Vxabs Vyabs Thetadotabs]
@@ -64,6 +67,7 @@ class ShipExperiment:
         self.rewards[it] = np.vstack([self.rewards[it], r])
         self.otherstates[it] = np.vstack([self.otherstates[it], other])
         self.rewardmode[it] = np.vstack([self.rewardmode[it], Rmode])
+        self.guideline[it] = np.vstack([self.guideline[it], g0])
 
 
     def save_2mat(self, title='matlab'):
@@ -74,25 +78,37 @@ class ShipExperiment:
         name = st+title+'.mat'
         io.savemat(name, {'states': list(self.states.values()), 'actions': list(self.actions.values()), 'obs': list(self.observations.values())})
 
+    def _ensure_experiment_directory(self):
+        """Ensure that the '_experiments' directory exists."""
+        os.makedirs('_experiments', exist_ok=True)
+
     def save_experiment(self, descr='_experiment'):
         """
         Use this method save an experiment in .pickle format
         """
-        st = datetime.datetime.fromtimestamp(t.time()).strftime('%Y-%m-%d-%H')
-        name = st+descr
-        with open('_experiments/'+name, 'wb') as f:
-            pickle.dump(self.__dict__, f, 2)
-        f.close()
+        self._ensure_experiment_directory()
+        st = datetime.datetime.now().strftime('%Y-%m-%d-%H')
+        name = f"{st}{descr}"
+        try:
+            with open(os.path.join('_experiments', name), 'wb') as f:
+                pickle.dump(self.__dict__, f, 2)
+            print(f"Experiment saved successfully: {name}")
+        except Exception as e:
+            print(f"Error saving experiment: {str(e)}")
 
     def load_from_experiment(self, name):
         """
-        Use this method save an experiment in .pickle format
-        :param name:
+        Use this method to load an experiment from a .pickle format
         """
-        with open('_experiments/' + name, 'rb') as f:
-            tmp_dict = pickle.load(f)
-        f.close()
-        self.__dict__.update(tmp_dict)
+        try:
+            with open(os.path.join('_experiments', name), 'rb') as f:
+                tmp_dict = pickle.load(f)
+            self.__dict__.update(tmp_dict)
+            print(f"Experiment loaded successfully: {name}")
+        except FileNotFoundError:
+            print(f"Experiment file not found: {name}")
+        except Exception as e:
+            print(f"Error loading experiment: {str(e)}")
 
     def plot_actions(self, iter=0, time=True):
         """
@@ -230,12 +246,14 @@ class ShipExperiment:
         :param iter: iteration index
         """
         plt.axis('equal')
-        plt.axis([0, 2000, 0, 2000])
+        plt.axis([0, 15000, 0, 15000])
         x_major_locator = MultipleLocator(500)
         y_major_locator = MultipleLocator(500)
         ax = plt.gca()
         ax.xaxis.set_major_locator(x_major_locator)
         ax.yaxis.set_major_locator(y_major_locator)
+        line1 = None 
+        line2 = None
         plt.plot()
         if iter == -1:
             for i in range(self.iterations + 1):
@@ -265,7 +283,7 @@ class ShipExperiment:
 
         else:
             plt.axis('equal')
-            plt.axis([0, 2000, 0, 2000])
+            plt.axis([0, 15000, 0, 15000])
             for k in (range(len(self.rewardmode[iter]))):
                 if (self.rewardmode[iter][k] > 0):
                     plt.plot(self.states[iter][k][0], self.states[iter][k][1], 'o:r', linewidth=1, markersize=0.8)
