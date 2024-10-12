@@ -12,9 +12,9 @@ Evaluation and transition of the data to the scenario in the input are listed in
 ## The Training and simulation part 
 The simluation and the training for the part are referred to the simulator in the ShipAI and Stable-baselines 3 as baseline for the structure, and the files are in the Shipenv_re document
 
-##Requirements
-###Python interpreter 
+## Requirements
+### Python interpreter 
 The data generation and transition period are based on the Python 3.10 environment,
 The ShipAI and relating training period are based on the Python 3.7 environment,
-###Packages installing
+### Packages installing
 The generation part are completely runnable in the defalut TSGM requirements, and the second part requirements are printed in the repo for serving needs
