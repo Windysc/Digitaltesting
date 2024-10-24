@@ -7,20 +7,27 @@ from ship_data_vis import ShipExperiment
 from simulator import Simulator
 
 class ShipEnv(Env):
-    def __init__(self, type='continuous', action_dim=2, 
+    def __init__(self, type='Low risk movement', action_dim=2, 
                  guideline_path='/home/junze/.jupyter/Train_VAE_full/dataset_1.csv.npy', 
                  mergeline_path='/home/junze/.jupyter/Train_VAE_full/dataset_2.csv.npy'):
         self.type = type
         self.action_dim = action_dim
         
         # Define action and observation spaces for 'continuous' type
-        if type == 'continuous':
-            self.action_space = spaces.Box(low=np.array([-0.5, 0.2]), high=np.array([1.0, 1.0]), dtype=np.float32)
+        if type == 'Low risk movement':
+            self.action_space = spaces.Box(low=np.array([-0.5, 0.2]), high=np.array([0.5, 1.0]), dtype=np.float32)
             self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]), 
-                                                high=np.array([1000.0, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
+                                                high=np.array([10000, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
             self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]), 
                                          high=np.array([1, 0.46, 2.2, 1.1, 0.2]))
-        
+
+        elif type == 'High risk movement':
+            self.action_space = spaces.Box(low=np.array([-1.0, -1.0]), high=np.array([1.0, 1.0]), dtype=np.float32)
+            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]),
+                                                high=np.array([10000, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
+            self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]),
+                                            high=np.array([1, 0.46, 2.2, 1.1, 0.2]))
+            
         # Load and process guideline and mergeline
         self.guideline_raw = self.load_trajectory_data(guideline_path)
         self.mergeline_raw = self.load_trajectory_data(mergeline_path)
@@ -117,22 +124,6 @@ class ShipEnv(Env):
         except Exception as e:
             print(f"Error loading experiment: {str(e)}")
             
-    def process_guideline(self, guideline):
-        # Process the guideline data to group every ten points into a different row
-        folded_guideline = []
-        num_cols = 20
-        num_rows = int(len(guideline)//num_cols)
-
-
-        for i in range(0, len(guideline)):
-            row = i // num_cols
-            col = i % num_cols
-            if row <= num_rows:
-                folded_guideline.append(guideline[row*num_cols+col])
-
-        # Reshape the list into rows of 10 elements each
-        return np.array(folded_guideline).reshape(-1, num_cols, 2)
-    
     def convert_lat_lon_to_meters(self, lat_lon_data):
         # Initialize an empty list to store the converted coordinates
         meters_data = []
@@ -430,10 +421,10 @@ class ShipEnv(Env):
             self.counter += 1
         else:
             init_states = np.array([
-                self.start_pos[0], self.start_pos[1],  # x, y
-                init[1],  # theta
-                init[2] * np.cos(init[1]), init[2] * np.sin(init[1]),  # vx, vy
-                0  # thetadot
+                self.start_pos[0], self.start_pos[1],  
+                init[1],  
+                init[2] * np.cos(init[1]), init[2] * np.sin(init[1]),  
+                0  
             ], dtype=float)
         self.single_step = 0
         self.simulator.reset_start_pos(init_states)
@@ -501,6 +492,7 @@ if __name__ == '__main__':
         env.close()
     elif mode == 'test':
         env = ShipEnv()
+        #testing samples
         Simulator = Simulator()
         Simulator.test_straight_line_motion()
         Simulator.test_various_scenarios()
