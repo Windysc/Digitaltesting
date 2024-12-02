@@ -5,6 +5,9 @@ import tensorflow as tf
 import tqdm
 import matplotlib.pyplot as plt
 import os
+from matplotlib.animation import FuncAnimation, PillowWriter
+import json
+from datetime import datetime
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
@@ -133,6 +136,202 @@ def visualize_episode_data(eval_data, episode, plot_dir):
         
     except Exception as e:
         print(f"Error visualizing data for episode {episode}: {str(e)}")
+def run_evaluation_and_visualize(env, model, num_episodes=10):
+    """
+    Run evaluation episodes and save both numerical results and animations
+    """
+    env.enable_evaluation_mode()
+    
+    # Create directories for saving results
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_dir = f"evaluation_results_{timestamp}"
+    gif_dir = os.path.join(base_dir, "animations")
+    data_dir = os.path.join(base_dir, "data")
+    plot_dir = os.path.join(base_dir, "plots")
+    
+    for directory in [gif_dir, data_dir, plot_dir]:
+        os.makedirs(directory, exist_ok=True)
+    
+    evaluation_results = {
+        'episodes': []
+    }
+    
+    for episode in range(num_episodes):
+        obs = env.reset()
+        done = False
+        episode_data = {
+            'states': [],
+            'other_states': [],
+            'actions': [],
+            'rewards': [],
+            'observations': [],
+            'total_reward': 0,
+            'steps': 0
+        }
+        
+        while not done:
+            action, _states = model.predict(obs, deterministic=True)
+            obs, reward, done, info = env.step(action)
+            
+            # Store step data
+            episode_data['states'].append(env.state.tolist())
+            episode_data['other_states'].append(env.target_state.tolist())
+            episode_data['actions'].append(action.tolist())
+            episode_data['rewards'].append(float(reward))
+            episode_data['observations'].append(obs.tolist())
+            episode_data['total_reward'] += reward
+            episode_data['steps'] += 1
+        
+        # Save episode data
+        evaluation_results['episodes'].append(episode_data)
+        
+        # Create and save animation
+        create_episode_animation(episode_data, episode, gif_dir)
+        
+        # Create and save static plots
+        create_episode_plots(episode_data, episode, plot_dir)
+        
+        print(f"Episode {episode+1} completed. Steps: {episode_data['steps']}, "
+              f"Total Reward: {episode_data['total_reward']:.2f}")
+    
+    # Save all numerical results
+    with open(os.path.join(data_dir, 'evaluation_results.json'), 'w') as f:
+        json.dump(evaluation_results, f)
+    
+    # Create summary plots
+    create_summary_plots(evaluation_results, plot_dir)
+
+def create_episode_animation(episode_data, episode_num, save_dir):
+    """
+    Create an animation of the ship's movement
+    """
+    states = np.array(episode_data['states'])
+    other_states = np.array(episode_data['other_states'])
+    
+    fig, ax = plt.subplots(figsize=(10, 10))
+    
+    def init():
+        ax.clear()
+        ax.set_xlim(min(states[:, 0].min(), other_states[:, 0].min()) - 10,
+                   max(states[:, 0].max(), other_states[:, 0].max()) + 10)
+        ax.set_ylim(min(states[:, 1].min(), other_states[:, 1].min()) - 10,
+                   max(states[:, 1].max(), other_states[:, 1].max()) + 10)
+        return []
+    
+    def animate(i):
+        ax.clear()
+        
+        # Plot full trajectories up to current point with alpha gradient
+        alpha_values = np.linspace(0.1, 1, i+1)
+        for j in range(i+1):
+            # Main ship
+            ax.plot(states[j:j+2, 0], states[j:j+2, 1], 'b-', 
+                   alpha=alpha_values[j], linewidth=1)
+            # Target ship
+            ax.plot(other_states[j:j+2, 0], other_states[j:j+2, 1], 'r-', 
+                   alpha=alpha_values[j], linewidth=1)
+        
+        # Plot current positions with arrows to show orientation
+        arrow_length = 2.0
+        # Main ship
+        dx = arrow_length * np.cos(states[i, 2])
+        dy = arrow_length * np.sin(states[i, 2])
+        ax.arrow(states[i, 0], states[i, 1], dx, dy, 
+                head_width=0.5, head_length=0.8, fc='b', ec='b')
+        
+        # Target ship
+        dx = arrow_length * np.cos(other_states[i, 2])
+        dy = arrow_length * np.sin(other_states[i, 2])
+        ax.arrow(other_states[i, 0], other_states[i, 1], dx, dy, 
+                head_width=0.5, head_length=0.8, fc='r', ec='r')
+        
+        ax.set_title(f'Episode {episode_num + 1} - Step {i}')
+        ax.grid(True)
+        ax.set_xlabel('X Position')
+        ax.set_ylabel('Y Position')
+        
+        # Add legend
+        ax.plot([], [], 'b-', label='Main Ship')
+        ax.plot([], [], 'r-', label='Target Ship')
+        ax.legend()
+        
+        return []
+    
+    anim = FuncAnimation(fig, animate, init_func=init, 
+                        frames=len(states), interval=50, blit=True)
+    
+    writer = PillowWriter(fps=20)
+    anim.save(os.path.join(save_dir, f'episode_{episode_num+1}.gif'), writer=writer)
+    plt.close()
+
+def create_episode_plots(episode_data, episode_num, save_dir):
+    """
+    Create static plots for the episode
+    """
+    # Trajectory plot
+    plt.figure(figsize=(10, 10))
+    states = np.array(episode_data['states'])
+    other_states = np.array(episode_data['other_states'])
+    plt.plot(states[:, 0], states[:, 1], 'b-', label='Main Ship')
+    plt.plot(other_states[:, 0], other_states[:, 1], 'r-', label='Target Ship')
+    plt.title(f'Episode {episode_num + 1} - Complete Trajectory')
+    plt.xlabel('X Position')
+    plt.ylabel('Y Position')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig(os.path.join(save_dir, f'trajectory_episode_{episode_num+1}.png'))
+    plt.close()
+    
+    # Actions and rewards plot
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+    
+    actions = np.array(episode_data['actions'])
+    ax1.plot(actions)
+    ax1.set_title('Actions')
+    ax1.set_xlabel('Step')
+    ax1.set_ylabel('Action Value')
+    ax1.grid(True)
+    
+    rewards = np.array(episode_data['rewards'])
+    ax2.plot(rewards)
+    ax2.set_title('Rewards')
+    ax2.set_xlabel('Step')
+    ax2.set_ylabel('Reward')
+    ax2.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_dir, f'actions_rewards_episode_{episode_num+1}.png'))
+    plt.close()
+
+def create_summary_plots(evaluation_results, save_dir):
+    """
+    Create summary plots across all episodes
+    """
+    episodes = evaluation_results['episodes']
+    num_episodes = len(episodes)
+    
+    # Episode statistics
+    total_rewards = [ep['total_reward'] for ep in episodes]
+    episode_lengths = [ep['steps'] for ep in episodes]
+    
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+    
+    ax1.plot(range(1, num_episodes + 1), total_rewards, 'bo-')
+    ax1.set_title('Total Rewards per Episode')
+    ax1.set_xlabel('Episode')
+    ax1.set_ylabel('Total Reward')
+    ax1.grid(True)
+    
+    ax2.plot(range(1, num_episodes + 1), episode_lengths, 'ro-')
+    ax2.set_title('Episode Lengths')
+    ax2.set_xlabel('Episode')
+    ax2.set_ylabel('Number of Steps')
+    ax2.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_dir, 'evaluation_summary.png'))
+    plt.close()
+
 
 # class VisualShipEnv(ShipEnv):
 #     def __init__(self):
@@ -161,18 +360,18 @@ print("Environment's action space:", env.action_space)
 
 
 if __name__ == '__main__':
-    mode = 'train'
+    mode = 'eval'
     if mode == 'train':
             obs = env.reset()
-            action, _states = model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)
+            action1, _states = model.predict(obs, deterministic=True)
+            obs, reward, done, info = env.step(action1)
             model.learn(total_timesteps=int(1e5), progress_bar=True, callback=callback)
             model.save("ppo_ship ship9")
             print('Training Done')
     elif mode == 'eval':
         env.set_test_performance()
         env.set_save_experice()
-        model = PPO.load("ppo_ship ship8", env=env)
+        model = PPO.load("ppo_ship ship9", env=env)
         run_evaluation_and_visualize(env, model)
 
 

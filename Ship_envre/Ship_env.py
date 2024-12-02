@@ -7,41 +7,61 @@ from ship_data_vis import ShipExperiment
 from simulator import Simulator
 
 class ShipEnv(Env):
-    def __init__(self, type='continuous', action_dim=2, 
-                 guideline_path='/home/junze/.jupyter/Train_VAE_full/dataset_1.csv.npy', 
+    def __init__(self, type='L1 movement', action_dim=2,
+                 guideline_path='/home/junze/.jupyter/Train_VAE_full/dataset_1.csv.npy',
                  mergeline_path='/home/junze/.jupyter/Train_VAE_full/dataset_2.csv.npy'):
         self.type = type
         self.action_dim = action_dim
-        
+
         # Define action and observation spaces for 'continuous' type
-        if type == 'continuous':
-            self.action_space = spaces.Box(low=np.array([-0.5, 0.2]), high=np.array([1.0, 1.0]), dtype=np.float32)
-            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]), 
-                                                high=np.array([1000.0, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
-            self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]), 
+        if type == 'L1 movement':
+            self.action_space = spaces.Box(low=np.array([-0.5, 0.2]), high=np.array([0.5, 1.0]), dtype=np.float32)
+            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]),
+                                                high=np.array([10000, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
+            self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]),
                                          high=np.array([1, 0.46, 2.2, 1.1, 0.2]))
-        
+
+        elif type == 'L2 movement':
+            self.action_space = spaces.Box(low=np.array([-1.0, -1.0]), high=np.array([1.0, 1.0]), dtype=np.float32)
+            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]),
+                                                high=np.array([10000, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
+            self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]),
+                                            high=np.array([1, 0.46, 2.2, 1.1, 0.2]))
+
+        elif type == 'L3 movement':
+            self.action_space = spaces.Box(low=np.array([-1.0, -1.0]), high=np.array([1.0, 1.0]), dtype=np.float32)
+            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]),
+                                                high=np.array([10000, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
+            self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]),
+                                            high=np.array([1, 0.46, 2.2, 1.1, 0.2]))
+        elif type == 'L4 movement':
+            self.action_space = spaces.Box(low=np.array([-1.0, -1.0]), high=np.array([1.0, 1.0]), dtype=np.float32)
+            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]),
+                                                high=np.array([10000, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
+            self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]),
+                                            high=np.array([1, 0.46, 2.2, 1.1, 0.2]))
+
         # Load and process guideline and mergeline
         self.guideline_raw = self.load_trajectory_data(guideline_path)
         self.mergeline_raw = self.load_trajectory_data(mergeline_path)
-        
+
         # Convert raw lat/lon data to meters
         self.guideline_meters = self.convert_lat_lon_to_meters(self.guideline_raw)
         self.mergeline_meters = self.convert_lat_lon_to_meters(self.mergeline_raw)
-        
+
         # Calculate trajectory statistics
         self.guideline_stats = self.calculate_trajectory_statistics(self.guideline_meters)
         self.mergeline_stats = self.calculate_trajectory_statistics(self.mergeline_meters)
-        
+
         # Store the mean and standard-deviation-based trajectories
         self.mean_trajectory_guideline = self.guideline_stats["avg_trajectory"]
         self.std_trajectory_guideline_lower = self.guideline_stats["lower_trajectory_std"]
         self.std_trajectory_guideline_upper = self.guideline_stats["upper_trajectory_std"]
-        
+
         self.mean_trajectory_mergeline = self.mergeline_stats["avg_trajectory"]
         self.std_trajectory_mergeline_lower = self.mergeline_stats["lower_trajectory_std"]
         self.std_trajectory_mergeline_upper = self.mergeline_stats["upper_trajectory_std"]
-        
+
         self.ship_data = None
         self.name_experiment = None
         self.last_pos = np.zeros(3)
@@ -52,10 +72,10 @@ class ShipEnv(Env):
         self.guideline = self.mean_trajectory_guideline
         self.mergeline = self.mean_trajectory_mergeline
         self.point_coming_ship = self.mergeline[1]
-        self.processed_guideline = self.process_guideline(self.guideline)
         self.borders = self.calculate_borders(self.guideline, self.mergeline)
         self.viewer = None
         self.test_performance = False
+        self.switch = False
         self.init_test_performance = np.linspace(0.45, 0.46, 10)
         self.counter = 0
         self.single_step = 0
@@ -117,22 +137,6 @@ class ShipEnv(Env):
         except Exception as e:
             print(f"Error loading experiment: {str(e)}")
             
-    def process_guideline(self, guideline):
-        # Process the guideline data to group every ten points into a different row
-        folded_guideline = []
-        num_cols = 20
-        num_rows = int(len(guideline)//num_cols)
-
-
-        for i in range(0, len(guideline)):
-            row = i // num_cols
-            col = i % num_cols
-            if row <= num_rows:
-                folded_guideline.append(guideline[row*num_cols+col])
-
-        # Reshape the list into rows of 10 elements each
-        return np.array(folded_guideline).reshape(-1, num_cols, 2)
-    
     def convert_lat_lon_to_meters(self, lat_lon_data):
         # Initialize an empty list to store the converted coordinates
         meters_data = []
@@ -281,11 +285,14 @@ class ShipEnv(Env):
         return borders
     
     def safe_distance(self, x1, y1, x2, y2):
+        if np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2) and (self.switch==False):
+            self.switch = True
         return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+        
     
     def step(self, action1):
         # According to the action space a different kind of action is selected
-        if self.type == 'continuous' and self.action_dim == 2:
+        if self.type == 'L1 movement' and self.action_dim == 2:
             angle_action = action1[0]
             rot_action = (action1[1]+1)/10
             angle_action_other = self.action_space_other[0]
@@ -318,9 +325,9 @@ class ShipEnv(Env):
         return tcpa, dcpa, cr
     
     def judging_area(self, x, y):
-        i = 0 
+        i = 0
         if (x > self.guideline[i][0]) and y > (self.guideline[i][1]):
-                i += 1  
+                i += 1
         return i
         
     def calculate_distance_to_guideline(self, x, y):
@@ -331,22 +338,17 @@ class ShipEnv(Env):
         # Check if we have enough guideline points
         if step_index + 1 >= len(self.guideline):
             print(f"Warning: step_index ({step_index}) is out of bounds for guideline (length {len(self.guideline)})")
-            return 0.0  
-        
-        # Create a line segment from two consecutive guideline points
-        process_guideline = self.processed_guideline
-        start_point = Point(process_guideline[step_index//20][0][0], process_guideline[step_index//20][0][1])
-        end_point = Point(process_guideline[(step_index+1)//20][19][0], process_guideline[(step_index+1)//20][19][1])
-        
+            return 0.0
+        start_point = Point(self.guideline[step_index])
+        end_point = Point(self.guideline[step_index + 1])
         guideline_segment = LineString([start_point, end_point])
-        
         # Calculate the distance
         d = ship_point.distance(guideline_segment)
-        
+
         return d
 
     def convert_state(self, state):
-        d = self.calculate_distance_to_guideline(state[0], state[1])  
+        d = self.calculate_distance_to_guideline(state[0], state[1])
         theta = state[2]  # radians
         vx = state[3]  # m/s
         vy = state[4]  # m/s
@@ -356,31 +358,25 @@ class ShipEnv(Env):
 
     def calculate_reward(self, obs):
         d, theta, vx, vy, thetadot = obs[0], obs[1]*180/np.pi, obs[2], obs[3], obs[4]*180/np.pi
-        if not self.observation_space.contains(obs):
-            return -1000
         if not self.rewardmode:
             return abs((1-(d/1000)))*(1-(d/1000))
         if self.rewardmode:
             return 2+10*(1-np.sqrt((self.last_pos[0]-self.point_coming_ship[0])**2+(self.last_pos[1]-self.point_coming_ship[1])**2)/200)
-        
+
     def set_init_space(self, low, high):
         self.init_space = spaces.Box(low=np.array(low), high=np.array(high))
-             
+
     def end(self, state_prime, obs):
-        if not self.observation_space.contains(obs):
-            if not self.observation_space.contains(obs):
+        if (self.switch) and self.safe_distance(state_prime[0], state_prime[1], self.point_coming_ship[0], self.point_coming_ship[1]) < 300:
+                return True
+        elif not self.observation_space.contains(obs):
                 print("\n Smashed")
                 print("steps: ", self.single_step)
-            if self.viewer is not None:
-                self.viewer.end_episode()
-            if self.ship_data is not None:
-                if self.ship_data.iterations > 0:
-                    self.ship_data.save_experiment(self.name_experiment)
-            return True
-        else:
-            return False
+                return True
+        return False
 
-     
+
+
     def dcpa_cal(self, vx1, vy1, x1, y1, x2):
         k = vy1 / vx1
         if k == 0:
@@ -430,10 +426,10 @@ class ShipEnv(Env):
             self.counter += 1
         else:
             init_states = np.array([
-                self.start_pos[0], self.start_pos[1],  # x, y
-                init[1],  # theta
-                init[2] * np.cos(init[1]), init[2] * np.sin(init[1]),  # vx, vy
-                0  # thetadot
+                self.start_pos[0], self.start_pos[1],  
+                init[1],  
+                init[2] * np.cos(init[1]), init[2] * np.sin(init[1]),  
+                0  
             ], dtype=float)
         self.single_step = 0
         self.simulator.reset_start_pos(init_states)
@@ -501,6 +497,7 @@ if __name__ == '__main__':
         env.close()
     elif mode == 'test':
         env = ShipEnv()
+        #testing samples
         Simulator = Simulator()
         Simulator.test_straight_line_motion()
         Simulator.test_various_scenarios()
