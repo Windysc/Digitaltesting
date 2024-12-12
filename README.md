@@ -11,6 +11,9 @@ Evaluation and transition of the data to the scenario in the input are listed in
 
 ## The Training and simulation part 
 The simluation and the training for the part are referred to the simulator in the ShipAI and Stable-baselines 3 as baseline for the structure, and the files are in the Shipenv_re document
+The main simulation file is based on the ppo_sb3_rl.py file and it has two main modes for the training.
+If selecting the train mode, the .py file will be working on the sb3 training settings conducted in the file itself and after training will save the agent file after running.
+If selecting the eval mode, the .py file will read the agent package and work for 10 episodes on the default settings in the testing setting in the Ship_env.py file and the evalation saving files are mainly two parts: a json file which conclude all the data in the monitored function array in the main training file upwards in the run_and_evaluate function, and pictures revealing the outcome of reward, action change with the step and the trajectory outcome in meters.
 
 ## Requirements
 ### Python interpreter 
