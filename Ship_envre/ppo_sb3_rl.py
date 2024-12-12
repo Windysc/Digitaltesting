@@ -37,105 +37,105 @@ class RewardLoggingCallback(BaseCallback):
 # Use the callback during training
 callback = RewardLoggingCallback()
 
-def run_evaluation_and_visualize(env, model, num_episodes=10):
-    env.enable_evaluation_mode()
+# def run_evaluation_and_visualize(env, model, num_episodes=10):
+#     env.enable_evaluation_mode()
     
-    for episode in range(num_episodes):
-        obs = env.reset()
-        done = False
-        total_reward = 0
-        steps = 0
+#     for episode in range(num_episodes):
+#         obs = env.reset()
+#         done = False
+#         total_reward = 0
+#         steps = 0
         
-        while not done:
-            action, _states = model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)
-            total_reward += reward
-            steps += 1
+#         while not done:
+#             action, _states = model.predict(obs, deterministic=True)
+#             obs, reward, done, info = env.step(action)
+#             total_reward += reward
+#             steps += 1
         
-        print(f"Episode {episode+1} completed. Steps: {steps}, Total Reward: {total_reward}")
+#         print(f"Episode {episode+1} completed. Steps: {steps}, Total Reward: {total_reward}")
     
-    env.save_evaluation_data()
+#     env.save_evaluation_data()
     
-    # Load the saved data
-    eval_data = ShipExperiment()
-    try:
-        eval_data.load_from_experiment("/home/junze/_experiments/2024-10-11-12final_evaluation_data")
-    except FileNotFoundError:
-        print("Evaluation data file not found. Make sure the file was saved correctly.")
-        return
+#     # Load the saved data
+#     eval_data = ShipExperiment()
+#     try:
+#         eval_data.load_from_experiment("/home/junze/_experiments/2024-10-11-12final_evaluation_data")
+#     except FileNotFoundError:
+#         print("Evaluation data file not found. Make sure the file was saved correctly.")
+#         return
     
-    # Create a directory to save plots
-    plot_dir = "evaluation_plots"
-    os.makedirs(plot_dir, exist_ok=True)
+#     # Create a directory to save plots
+#     plot_dir = "evaluation_plots"
+#     os.makedirs(plot_dir, exist_ok=True)
     
-    # Visualize the data
-    try:
-        for i in range(eval_data.iterations + 1):
-            visualize_episode_data(eval_data, i, plot_dir)
-    except Exception as e:
-        print(f"Error during visualization: {str(e)}")
+#     # Visualize the data
+#     try:
+#         for i in range(eval_data.iterations + 1):
+#             visualize_episode_data(eval_data, i, plot_dir)
+#     except Exception as e:
+#         print(f"Error during visualization: {str(e)}")
 
-def visualize_episode_data(eval_data, episode, plot_dir):
-    """Visualize data for a single episode, saving plots as image files."""
-    try:
-        # Plot trajectory
-        states = np.array(eval_data.states[episode])
-        other_states = np.array(eval_data.otherstates[episode])
+# def visualize_episode_data(eval_data, episode, plot_dir):
+#     """Visualize data for a single episode, saving plots as image files."""
+#     try:
+#         # Plot trajectory
+#         states = np.array(eval_data.states[episode])
+#         other_states = np.array(eval_data.otherstates[episode])
         
-        if len(states) != len(other_states):
-            print(f"Warning: Mismatch in data lengths for episode {episode}. Trimming to shorter length.")
-            min_len = min(len(states), len(other_states))
-            states = states[:min_len]
-            other_states = other_states[:min_len]
+#         if len(states) != len(other_states):
+#             print(f"Warning: Mismatch in data lengths for episode {episode}. Trimming to shorter length.")
+#             min_len = min(len(states), len(other_states))
+#             states = states[:min_len]
+#             other_states = other_states[:min_len]
         
-        plt.figure(figsize=(10, 8))
-        plt.plot(states[:, 0], states[:, 1], label='Vessel')
-        plt.plot(other_states[:, 0], other_states[:, 1], label='Objective Vessel')
-        plt.legend()
-        plt.title(f'Trajectory - Episode {episode}')
-        plt.xlabel('X position')
-        plt.ylabel('Y position')
-        plt.savefig(os.path.join(plot_dir, f'trajectory_episode_{episode}.png'))
-        plt.close()
+#         plt.figure(figsize=(10, 8))
+#         plt.plot(states[:, 0], states[:, 1], label='Vessel')
+#         plt.plot(other_states[:, 0], other_states[:, 1], label='Objective Vessel')
+#         plt.legend()
+#         plt.title(f'Trajectory - Episode {episode}')
+#         plt.xlabel('X position')
+#         plt.ylabel('Y position')
+#         plt.savefig(os.path.join(plot_dir, f'trajectory_episode_{episode}.png'))
+#         plt.close()
         
-        # Plot actions
-        actions = np.array(eval_data.actions[episode])
-        plt.figure(figsize=(10, 6))
-        for i in range(actions.shape[1]):
-            plt.plot(actions[:, i], label=f'Action {i+1}')
-        plt.legend()
-        plt.title(f'Actions - Episode {episode}')
-        plt.xlabel('Step')
-        plt.ylabel('Action Value')
-        plt.savefig(os.path.join(plot_dir, f'actions_episode_{episode}.png'))
-        plt.close()
+#         # Plot actions
+#         actions = np.array(eval_data.actions[episode])
+#         plt.figure(figsize=(10, 6))
+#         for i in range(actions.shape[1]):
+#             plt.plot(actions[:, i], label=f'Action {i+1}')
+#         plt.legend()
+#         plt.title(f'Actions - Episode {episode}')
+#         plt.xlabel('Step')
+#         plt.ylabel('Action Value')
+#         plt.savefig(os.path.join(plot_dir, f'actions_episode_{episode}.png'))
+#         plt.close()
         
-        # Plot reward
-        rewards = np.array(eval_data.rewards[episode])
-        plt.figure(figsize=(10, 6))
-        plt.plot(rewards)
-        plt.title(f'Reward - Episode {episode}')
-        plt.xlabel('Step')
-        plt.ylabel('Reward')
-        plt.savefig(os.path.join(plot_dir, f'reward_episode_{episode}.png'))
-        plt.close()
+#         # Plot reward
+#         rewards = np.array(eval_data.rewards[episode])
+#         plt.figure(figsize=(10, 6))
+#         plt.plot(rewards)
+#         plt.title(f'Reward - Episode {episode}')
+#         plt.xlabel('Step')
+#         plt.ylabel('Reward')
+#         plt.savefig(os.path.join(plot_dir, f'reward_episode_{episode}.png'))
+#         plt.close()
         
-        # Plot observations
-        observations = np.array(eval_data.observations[episode])
-        plt.figure(figsize=(12, 8))
-        for i in range(observations.shape[1]):
-            plt.plot(observations[:, i], label=f'Obs {i+1}')
-        plt.legend()
-        plt.title(f'Observations - Episode {episode}')
-        plt.xlabel('Step')
-        plt.ylabel('Observation Value')
-        plt.savefig(os.path.join(plot_dir, f'observations_episode_{episode}.png'))
-        plt.close()
+#         # Plot observations
+#         observations = np.array(eval_data.observations[episode])
+#         plt.figure(figsize=(12, 8))
+#         for i in range(observations.shape[1]):
+#             plt.plot(observations[:, i], label=f'Obs {i+1}')
+#         plt.legend()
+#         plt.title(f'Observations - Episode {episode}')
+#         plt.xlabel('Step')
+#         plt.ylabel('Observation Value')
+#         plt.savefig(os.path.join(plot_dir, f'observations_episode_{episode}.png'))
+#         plt.close()
         
-        print(f"Plots for episode {episode} saved in {plot_dir}")
+#         print(f"Plots for episode {episode} saved in {plot_dir}")
         
-    except Exception as e:
-        print(f"Error visualizing data for episode {episode}: {str(e)}")
+#     except Exception as e:
+#         print(f"Error visualizing data for episode {episode}: {str(e)}")
 def run_evaluation_and_visualize(env, model, num_episodes=10):
     """
     Run evaluation episodes and save both numerical results and animations
@@ -160,7 +160,7 @@ def run_evaluation_and_visualize(env, model, num_episodes=10):
         obs = env.reset()
         done = False
         episode_data = {
-            'states': [],
+            'last_pos': [],
             'other_states': [],
             'actions': [],
             'rewards': [],
@@ -174,8 +174,7 @@ def run_evaluation_and_visualize(env, model, num_episodes=10):
             obs, reward, done, info = env.step(action)
             
             # Store step data
-            episode_data['states'].append(env.state.tolist())
-            episode_data['other_states'].append(env.target_state.tolist())
+            episode_data['last_pos'].append(env.last_pos)
             episode_data['actions'].append(action.tolist())
             episode_data['rewards'].append(float(reward))
             episode_data['observations'].append(obs.tolist())
@@ -184,9 +183,6 @@ def run_evaluation_and_visualize(env, model, num_episodes=10):
         
         # Save episode data
         evaluation_results['episodes'].append(episode_data)
-        
-        # Create and save animation
-        create_episode_animation(episode_data, episode, gif_dir)
         
         # Create and save static plots
         create_episode_plots(episode_data, episode, plot_dir)
@@ -201,79 +197,16 @@ def run_evaluation_and_visualize(env, model, num_episodes=10):
     # Create summary plots
     create_summary_plots(evaluation_results, plot_dir)
 
-def create_episode_animation(episode_data, episode_num, save_dir):
-    """
-    Create an animation of the ship's movement
-    """
-    states = np.array(episode_data['states'])
-    other_states = np.array(episode_data['other_states'])
-    
-    fig, ax = plt.subplots(figsize=(10, 10))
-    
-    def init():
-        ax.clear()
-        ax.set_xlim(min(states[:, 0].min(), other_states[:, 0].min()) - 10,
-                   max(states[:, 0].max(), other_states[:, 0].max()) + 10)
-        ax.set_ylim(min(states[:, 1].min(), other_states[:, 1].min()) - 10,
-                   max(states[:, 1].max(), other_states[:, 1].max()) + 10)
-        return []
-    
-    def animate(i):
-        ax.clear()
-        
-        # Plot full trajectories up to current point with alpha gradient
-        alpha_values = np.linspace(0.1, 1, i+1)
-        for j in range(i+1):
-            # Main ship
-            ax.plot(states[j:j+2, 0], states[j:j+2, 1], 'b-', 
-                   alpha=alpha_values[j], linewidth=1)
-            # Target ship
-            ax.plot(other_states[j:j+2, 0], other_states[j:j+2, 1], 'r-', 
-                   alpha=alpha_values[j], linewidth=1)
-        
-        # Plot current positions with arrows to show orientation
-        arrow_length = 2.0
-        # Main ship
-        dx = arrow_length * np.cos(states[i, 2])
-        dy = arrow_length * np.sin(states[i, 2])
-        ax.arrow(states[i, 0], states[i, 1], dx, dy, 
-                head_width=0.5, head_length=0.8, fc='b', ec='b')
-        
-        # Target ship
-        dx = arrow_length * np.cos(other_states[i, 2])
-        dy = arrow_length * np.sin(other_states[i, 2])
-        ax.arrow(other_states[i, 0], other_states[i, 1], dx, dy, 
-                head_width=0.5, head_length=0.8, fc='r', ec='r')
-        
-        ax.set_title(f'Episode {episode_num + 1} - Step {i}')
-        ax.grid(True)
-        ax.set_xlabel('X Position')
-        ax.set_ylabel('Y Position')
-        
-        # Add legend
-        ax.plot([], [], 'b-', label='Main Ship')
-        ax.plot([], [], 'r-', label='Target Ship')
-        ax.legend()
-        
-        return []
-    
-    anim = FuncAnimation(fig, animate, init_func=init, 
-                        frames=len(states), interval=50, blit=True)
-    
-    writer = PillowWriter(fps=20)
-    anim.save(os.path.join(save_dir, f'episode_{episode_num+1}.gif'), writer=writer)
-    plt.close()
-
 def create_episode_plots(episode_data, episode_num, save_dir):
     """
     Create static plots for the episode
     """
     # Trajectory plot
     plt.figure(figsize=(10, 10))
-    states = np.array(episode_data['states'])
-    other_states = np.array(episode_data['other_states'])
-    plt.plot(states[:, 0], states[:, 1], 'b-', label='Main Ship')
-    plt.plot(other_states[:, 0], other_states[:, 1], 'r-', label='Target Ship')
+    last_pos = np.array(episode_data['last_pos'])
+    # other_states = np.array(episode_data['other_states'])
+    plt.plot(last_pos[:, 0], last_pos[:, 1], 'b-', label='Main Ship')
+    # plt.plot(other_states[: 0], other_states[: 1], 'r-', label='Target Ship')
     plt.title(f'Episode {episode_num + 1} - Complete Trajectory')
     plt.xlabel('X Position')
     plt.ylabel('Y Position')
@@ -333,17 +266,15 @@ def create_summary_plots(evaluation_results, save_dir):
     plt.close()
 
 
-# class VisualShipEnv(ShipEnv):
-#     def __init__(self):
-#         super().__init__()
-#         self.viewer = Viewer()
+class VisualShipEnv(ShipEnv):
+    def __init__(self):
+        super().__init__()
+        self.viewer = Viewer()
         
-#     def render(self):
-#         # Assuming self.state contains [x, y, theta, v, omega]
-#         x, y, theta, v, omega = self.state
-#         # Assuming you have a way to get the rudder angle
-#         rudder_angle = self.get_rudder_angle()  # You need to implement this method
-#         self.viewer.plot_position(x, y, theta, rudder_angle)
+    def render(self):
+        x, y, theta, v, omega = self.state
+        rudder_angle = self.get_rudder_angle()  
+        self.viewer.plot_position(x, y, theta, rudder_angle)
 
 # Create the environment
 env = ShipEnv()
@@ -352,7 +283,7 @@ print(env.borders)
 
 shipExp = ShipExperiment()
 
-model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_ship_tensorboard/")
+model = PPO("MlpPolicy", env, verbose=1)
 
 print("Model's action space:", model.action_space)
 
@@ -365,7 +296,7 @@ if __name__ == '__main__':
             obs = env.reset()
             action1, _states = model.predict(obs, deterministic=True)
             obs, reward, done, info = env.step(action1)
-            model.learn(total_timesteps=int(1e5), progress_bar=True, callback=callback)
+            model.learn(total_timesteps=int(1e4))
             model.save("ppo_ship ship9")
             print('Training Done')
     elif mode == 'eval':

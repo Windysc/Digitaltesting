@@ -8,8 +8,8 @@ from simulator import Simulator
 
 class ShipEnv(Env):
     def __init__(self, type='L1 movement', action_dim=2,
-                 guideline_path='/home/junze/.jupyter/Train_VAE_full/dataset_1.csv.npy',
-                 mergeline_path='/home/junze/.jupyter/Train_VAE_full/dataset_2.csv.npy'):
+                 guideline_path='C:/Users/user/Desktop/backup data/git files/dataset_1.csv.npy',
+                 mergeline_path='C:/Users/user/Desktop/backup data/git files/dataset_2.csv.npy'):
         self.type = type
         self.action_dim = action_dim
 
@@ -308,9 +308,9 @@ class ShipEnv(Env):
         self.last_pos = [state_prime[0], state_prime[1], state_prime[2]]
         self.last_action = np.array([angle_action, rot_action])
         # tcpa, dcpa, cr = self.calculate_safety_method(state_prime)
-        print('obs=',obs)
-        print('state_prime=',state_prime)
-        print('reward=',rew)
+        # print('obs=',obs)
+        # print('state_prime=',state_prime)
+        # print('reward=',rew)
         rewardmode = bool(np.sqrt((self.last_pos[0] - self.point_coming_ship[0])**2 + (self.last_pos[1] - self.point_coming_ship[1])**2) - 1500)
         if hasattr(self, 'evaluation_mode') and self.evaluation_mode:
             self.eval_data.new_transition(state_prime, obs, self.last_action, rew, otherstates, rewardmode, self.guideline_meters)
@@ -482,7 +482,7 @@ class ShipEnv(Env):
 
 
 if __name__ == '__main__':
-    mode = 'test'  
+    mode = 'train'  
     if mode == 'train':
         env = ShipEnv()
         ShipExp = ShipExperiment()
