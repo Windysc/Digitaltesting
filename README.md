@@ -23,3 +23,15 @@ The data generation and transition period are based on the Python 3.10 environme
 The ShipAI and relating training period are based on the Python 3.7 environment,
 ### Packages installing
 The generation part are completely runnable in the defalut TSGM requirements, and the second part requirements are printed in the repo for serving needs
+
+
+## Indications on the existing files:
+The files are generally packed in five folders: The three train_vae_full, train_nGAN_full and train_Diff_full folders, the evaluation folder and the Ship_envre folder. For the containing files in the folders, the first three train folders contain the training scripts for the data generation part, which are classified using the network type. To note that, the nGAN folder contains both the cGAN and wGAN training attempt scripts and the Diff folder containing the Diffusion, TrajDiffusion and Unet training attempt scripts but not all the scripts are availiable for use. The availbility for the generation is listed in the name of the training script which may be in the form of .py files or jupyter notebook files.
+
+For the evaluation folder the containing three .py files are acting as transfer role for the data to become inportable trace, the jsd-matrix file as the judge for the generation outcome, plot_training for the generation visualization and the scenario_creation for the trace generation.
+
+For the Ship_envre folder things are served mainly for the critical scenario generation, with the ppo_sb3_rl.py as the main file for running and the Ship_env.py and the simulator.py acting as the background settings and the ship simulatioon container. 
+
+For training usage, just run the ppo_sb3_rl.py with the default settings and you could make adjustments in the latter part of the file for tryouts.
+
+The other files are marked with their usage in accordance with the main files.
