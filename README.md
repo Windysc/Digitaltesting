@@ -7,9 +7,10 @@ Second is the free chase mode, when the two ship reach the selected area the fre
 
 # Menu
 -[The data generation and evaluation part](#The data generation and evaluation part)
--[The Training and simulation part](The Training and simulation part)
+-[The Training and simulation part](#The Training and simulation part)
 -[Requirements](Requirements)
--[Indications on the existing files](Indications on the existing files)
+-[Indications on the existing files:](#Indications on the existing files:) 
+
 
 
 ## The data generation and evaluation part
