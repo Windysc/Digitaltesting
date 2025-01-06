@@ -1,7 +1,5 @@
 import gym
 import numpy as np
-import tensorboard
-import tensorflow as tf
 import tqdm
 import matplotlib.pyplot as plt
 import os
@@ -175,6 +173,7 @@ def run_evaluation_and_visualize(env, model, num_episodes=10):
             
             # Store step data
             episode_data['last_pos'].append(env.last_pos)
+            episode_data['other_states'].append(env.point_coming_ship)
             episode_data['actions'].append(action.tolist())
             episode_data['rewards'].append(float(reward))
             episode_data['observations'].append(obs.tolist())
@@ -204,9 +203,9 @@ def create_episode_plots(episode_data, episode_num, save_dir):
     # Trajectory plot
     plt.figure(figsize=(10, 10))
     last_pos = np.array(episode_data['last_pos'])
-    # other_states = np.array(episode_data['other_states'])
+    other_states = np.array(episode_data['other_states'])
     plt.plot(last_pos[:, 0], last_pos[:, 1], 'b-', label='Main Ship')
-    # plt.plot(other_states[: 0], other_states[: 1], 'r-', label='Target Ship')
+    plt.plot(other_states[:, 0], other_states[:, 1], 'r-', label='Target Ship')
     plt.title(f'Episode {episode_num + 1} - Complete Trajectory')
     plt.xlabel('X Position')
     plt.ylabel('Y Position')
@@ -296,13 +295,14 @@ if __name__ == '__main__':
             obs = env.reset()
             action1, _states = model.predict(obs, deterministic=True)
             obs, reward, done, info = env.step(action1)
-            model.learn(total_timesteps=int(1e4))
-            model.save("ppo_ship ship9")
+            model.learn(total_timesteps=int(4e5))
+            model.save("ppo_ship ship13")
             print('Training Done')
     elif mode == 'eval':
+        del model
+        model = PPO.load("ppo_ship ship12")
         env.set_test_performance()
         env.set_save_experice()
-        model = PPO.load("ppo_ship ship9", env=env)
         run_evaluation_and_visualize(env, model)
 
 

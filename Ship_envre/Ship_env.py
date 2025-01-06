@@ -1,4 +1,5 @@
 from gym import Env, spaces
+import os
 import numpy as np
 import sys
 from shapely.geometry import LineString, Point
@@ -8,23 +9,23 @@ from simulator import Simulator
 
 class ShipEnv(Env):
     def __init__(self, type='L1 movement', action_dim=2,
-                 guideline_path='C:/Users/user/Desktop/backup data/git files/dataset_1.csv.npy',
-                 mergeline_path='C:/Users/user/Desktop/backup data/git files/dataset_2.csv.npy'):
+                 guideline_path="C:\\Users\\user\\Desktop\\backup data\\git files\\.jupyter\\Data transfer and loading\\dataset_1.csv.npy",
+                 mergeline_path="C:\\Users\\user\\Desktop\\backup data\\git files\\.jupyter\\Data transfer and loading\\dataset_2.csv.npy"):
         self.type = type
         self.action_dim = action_dim
 
         # Define action and observation spaces for 'continuous' type
         if type == 'L1 movement':
-            self.action_space = spaces.Box(low=np.array([-0.5, 0.2]), high=np.array([0.5, 1.0]), dtype=np.float32)
-            self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]),
-                                                high=np.array([10000, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
-            self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]),
-                                         high=np.array([1, 0.46, 2.2, 1.1, 0.2]))
+            self.action_space = spaces.Box(low=np.array([-1, -0.5]), high=np.array([1, 2]), dtype=np.float32)
+            self.observation_space = spaces.Box(low=np.array([0, -2*np.pi, -5.0, -5.0, -2.0]),
+                                                high=np.array([1000000, 2*np.pi, 50.0, 50.0, 2.0]), dtype=np.float32)
+            self.init_space = spaces.Box(low=np.array([0, 0.5, 2.0, 1.0, -0.1]),
+                                         high=np.array([1, 0.6, 2.2, 1.1, 0.2]))
 
         elif type == 'L2 movement':
             self.action_space = spaces.Box(low=np.array([-1.0, -1.0]), high=np.array([1.0, 1.0]), dtype=np.float32)
             self.observation_space = spaces.Box(low=np.array([0, -np.pi, -5.0, -5.0, -2.0]),
-                                                high=np.array([10000, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
+                                                high=np.array([1000000, np.pi, 30.0, 30.0, 2.0]), dtype=np.float32)
             self.init_space = spaces.Box(low=np.array([0, 0.45, 2.0, 1.0, -0.1]),
                                             high=np.array([1, 0.46, 2.2, 1.1, 0.2]))
 
@@ -67,21 +68,21 @@ class ShipEnv(Env):
         self.last_pos = np.zeros(3)
         self.last_action = np.zeros(self.action_dim)
         self.simulator = Simulator()
+        self.viewer = None
         
         # Set initial guideline and mergeline to their mean trajectories
         self.guideline = self.mean_trajectory_guideline
         self.mergeline = self.mean_trajectory_mergeline
-        self.point_coming_ship = self.mergeline[1]
+        self.point_coming_ship = self.mergeline[99]
         self.borders = self.calculate_borders(self.guideline, self.mergeline)
-        self.viewer = None
         self.test_performance = False
         self.switch = False
-        self.init_test_performance = np.linspace(0.45, 0.46, 10)
+        self.init_test_performance = np.linspace(0.5, 0.6, 10)
         self.counter = 0
+        self.count1 = 0
         self.single_step = 0
         self.start_pos = self.guideline[0]
         self.action_space_other = [0.0, 0.5]
-        self.other_ship_state = (0, -2.25, 2.0, 1.0, 0.0, 0.0)
         self.times = np.arange(0, len(self.guideline), 1)
         self.rewardmode = False
         self.attacking_speed = np.abs(self.cal_attacking_speed(self.times, self.single_step, self.mergeline))
@@ -294,12 +295,11 @@ class ShipEnv(Env):
         # According to the action space a different kind of action is selected
         if self.type == 'L1 movement' and self.action_dim == 2:
             angle_action = action1[0]
-            rot_action = (action1[1]+1)/10
-            angle_action_other = self.action_space_other[0]
-            rot_action_other = (self.action_space_other[1]+1)/10             
+            rot_action = (action1[1]+1)/5
         state_prime = self.simulator.step(angle_level=angle_action, rot_level=rot_action)
-        self.other_ship_state = self.simulator.step(angle_level=angle_action_other, rot_level=rot_action_other)
-        self.point_coming_ship = [self.other_ship_state[0], self.other_ship_state[1]]
+        if (self.single_step%2 == 0):
+            self.count1 += 1
+            self.point_coming_ship = self.mergeline[99-self.count1]
         obs = self.convert_state(state_prime)
         dn = self.end(state_prime=state_prime, obs=obs)
         rew = self.calculate_reward(obs=obs)
@@ -312,7 +312,7 @@ class ShipEnv(Env):
         # print('state_prime=',state_prime)
         # print('reward=',rew)
         rewardmode = bool(np.sqrt((self.last_pos[0] - self.point_coming_ship[0])**2 + (self.last_pos[1] - self.point_coming_ship[1])**2) - 1500)
-        if hasattr(self, 'evaluation_mode') and self.evaluation_mode:
+        if hasattr(self, 'evaluation_mode'):
             self.eval_data.new_transition(state_prime, obs, self.last_action, rew, otherstates, rewardmode, self.guideline_meters)
         info = dict()
         return obs, rew, dn, info
@@ -348,7 +348,7 @@ class ShipEnv(Env):
         return d
 
     def convert_state(self, state):
-        d = self.calculate_distance_to_guideline(state[0], state[1])
+        d = self.safe_distance(self.point_coming_ship[0], self.point_coming_ship[1], self.last_pos[0], self.last_pos[1])
         theta = state[2]  # radians
         vx = state[3]  # m/s
         vy = state[4]  # m/s
@@ -359,7 +359,7 @@ class ShipEnv(Env):
     def calculate_reward(self, obs):
         d, theta, vx, vy, thetadot = obs[0], obs[1]*180/np.pi, obs[2], obs[3], obs[4]*180/np.pi
         if not self.rewardmode:
-            return abs((1-(d/1000)))*(1-(d/1000))
+            return abs((1-(d/100000)))*(1-(d/100000))
         if self.rewardmode:
             return 2+10*(1-np.sqrt((self.last_pos[0]-self.point_coming_ship[0])**2+(self.last_pos[1]-self.point_coming_ship[1])**2)/200)
 
@@ -368,10 +368,12 @@ class ShipEnv(Env):
 
     def end(self, state_prime, obs):
         if (self.switch) and self.safe_distance(state_prime[0], state_prime[1], self.point_coming_ship[0], self.point_coming_ship[1]) < 300:
+                print("\n Met with safe distance")
                 return True
         elif not self.observation_space.contains(obs):
                 print("\n Smashed")
                 print("steps: ", self.single_step)
+                print(obs, state_prime)
                 return True
         return False
 
@@ -416,12 +418,12 @@ class ShipEnv(Env):
         init = list(map(float, self.init_space.sample())) 
         if self.test_performance:
             angle = self.init_test_performance[self.counter]
-            v_lon = 3
+            v_lon = 10
             init_states = np.array([
-                self.start_pos[0], self.start_pos[1],  # x, y
-                angle,  # theta
-                v_lon * np.cos(angle), v_lon * np.sin(angle),  # vx, vy
-                0  # thetadot
+                self.start_pos[0], self.start_pos[1],  
+                angle,  
+                v_lon * np.cos(angle), v_lon * np.sin(angle),  
+                0  
             ], dtype=float)
             self.counter += 1
         else:
@@ -431,12 +433,12 @@ class ShipEnv(Env):
                 init[2] * np.cos(init[1]), init[2] * np.sin(init[1]),  
                 0  
             ], dtype=float)
-        self.single_step = 0
         self.simulator.reset_start_pos(init_states)
         self.last_pos = np.array([init_states[0], init_states[1], init_states[2]])
-        self.point_coming_ship = self.mergeline[0]
+        self.point_coming_ship = self.mergeline[99]
         state = self.simulator.get_state()
         self.single_step = 0
+        self.count1 = 0
         print('Resetting position')
         otherstates = self.point_coming_ship
         rewardmode = 0
@@ -450,11 +452,30 @@ class ShipEnv(Env):
 
         return self.convert_state(state)
     
+    def close(self):
+        """Safely close the environment and viewer"""
+        if self.viewer is not None:
+            try:
+                self.viewer.freeze_scream()
+                self.viewer = None
+            except Exception as e:
+                print(f"Warning: Error while closing viewer: {e}")
+        
+        # Call parent class close method if it exists
+        try:
+            super().close()
+        except Exception:
+            pass
+    
     def render(self, mode='human'):
         if self.viewer is None:
-            self.viewer = Viewer()
-            self.viewer.plot_boundary(self.borders)
-            self.viewer.plot_guidance_line(self.point_a, self.point_b)
+                try:
+                    self.viewer = Viewer()
+                    self.viewer.plot_boundary(self.borders)
+                    self.viewer.plot_guidance_line(self.point_a, self.point_b)
+                except Exception as e:
+                    print(f"Warning: Could not create viewer: {e}")
+                    return
 
         img_x_pos = self.last_pos[0] - self.point_b[0] * (self.last_pos[0] // self.point_b[0])
         if self.last_pos[0]//self.point_b[0] > self.number_loop:
@@ -482,7 +503,7 @@ class ShipEnv(Env):
 
 
 if __name__ == '__main__':
-    mode = 'train'  
+    mode = 'train'
     if mode == 'train':
         env = ShipEnv()
         ShipExp = ShipExperiment()
