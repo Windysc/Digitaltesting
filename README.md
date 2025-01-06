@@ -42,6 +42,31 @@ For the evaluation folder the containing three .py files are acting as transfer 
 
 For the Ship_envre folder things are served mainly for the critical scenario generation, with the ppo_sb3_rl.py as the main file for running and the Ship_env.py and the simulator.py acting as the background settings and the ship simulatioon container. 
 
-For training usage, just run the ppo_sb3_rl.py with the default settings and you could make adjustments in the latter part of the file for tryouts.
+The Ship_env.py file is based on the ShipAI project which could be found on the github codespace. The overall settings are in the default style of the Ship_env.py file in the same Gym environment and share the same variables in the scope of controlling. The Ship_env.py in the current file is a completely rebuild and have other factors like border reading, scope calculation, and reward stage comfirmation. For the running of the whole project in test of different scenario occurance, the focus should be mainly on the selection of the boudaries of the variables involved, reading of the data and the policy of the learning and reward.
+
+## Steps and instructions 
+For the whole process details relating on the training and generating coding practices:
+
+First select the data for initialization in advance,
+
+For data training usage, just run the ppo_sb3_rl.py with the default settings and you could make adjustments in the latter part of the file for tryouts. All the files conclude the reading of the data file and just change the path of the file in the reading lines, 
+
+
+selecting the proposed outcome path and change the desired training parameters to cope with the input data to avoid faults.
+
+For the connection between the data training and the scenario generation:
+
+
+
+Last for the scenario generation, we use the default Stablebaselines3 agent for the baseline of the model, which could be replaced easily in the following process:
+
+
+For the scenario creation, the environment settings shall be classified:
+
+For the boundaries of variables:
+
+For the settings of the policies:
+
+
 
 The other files are marked with their usage in accordance with the main files.
