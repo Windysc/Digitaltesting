@@ -47,26 +47,8 @@ The Ship_env.py file is based on the ShipAI project which could be found on the 
 ## Steps and instructions 
 For the whole process details relating on the training and generating coding practices:
 
-First select the data for initialization in advance,
+First select the data for initialization in advance, for data training usage, just run the ppo_sb3_rl.py with the default settings and you could make adjustments in the latter part of the file for tryouts. All the files conclude the reading of the data file and just change the path of the file in the reading lines. Selecting the proposed outcome path and change the desired training parameters to cope with the input data to avoid faults.
 
-For data training usage, just run the ppo_sb3_rl.py with the default settings and you could make adjustments in the latter part of the file for tryouts. All the files conclude the reading of the data file and just change the path of the file in the reading lines, 
-
-
-selecting the proposed outcome path and change the desired training parameters to cope with the input data to avoid faults.
-
-For the connection between the data training and the scenario generation:
-
-
-
-Last for the scenario generation, we use the default Stablebaselines3 agent for the baseline of the model, which could be replaced easily in the following process:
-
-
-For the scenario creation, the environment settings shall be classified:
-
-For the boundaries of variables:
-
-For the settings of the policies:
-
-
+Last for the scenario generation, we use the default Stablebaselines3 agent for the baseline of the model.
 
 The other files are marked with their usage in accordance with the main files.
