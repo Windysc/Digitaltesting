@@ -1,0 +1,11 @@
+# Trace generators (general/generators). Written for Python 3.10 with the default TSGM requirements;
+# the pipeline in general/ does not need any of this.
+tsgm
+tensorflow
+keras
+scikit-learn
+torch
+tqdm
+matplotlib
+numpy
+pandas

@@ -1,0 +1,273 @@
+{
+ "T1_raw_off": {
+  "pos": "3.6 / 7.7 / 12.7",
+  "course": "0.3 / 1.0 / 2.4",
+  "rate": "0.012 / 0.040 / 0.111"
+ },
+ "T1_raw_on": {
+  "pos": "2.9 / 6.1 / 10.0",
+  "course": "0.2 / 0.6 / 1.4",
+  "rate": "0.008 / 0.024 / 0.053"
+ },
+ "T1_raw_legacy": {
+  "pos_true_time": "4.7 / 11.3 / 492.6",
+  "pos_uniform": "624.6 / 3550.5 / 7678.4",
+  "speed_ratio": [
+   0.34187547456498624,
+   1.601980305420959
+  ]
+ },
+ "T1_ds30_off": {
+  "pos": "3.9 / 8.3 / 17.0",
+  "course": "0.3 / 1.1 / 4.9",
+  "rate": "0.010 / 0.037 / 0.211"
+ },
+ "T1_ds30_on": {
+  "pos": "3.4 / 6.9 / 14.7",
+  "course": "0.3 / 0.8 / 1.5",
+  "rate": "0.011 / 0.033 / 0.081"
+ },
+ "T1_ds30_legacy": {
+  "pos_true_time": "5.2 / 20.8 / 1154.2",
+  "pos_uniform": "201.2 / 2747.3 / 7251.9",
+  "speed_ratio": [
+   0.5383667875584883,
+   1.2780936891882195
+  ]
+ },
+ "T1_ds60_off": {
+  "pos": "4.2 / 9.1 / 20.0",
+  "course": "0.3 / 1.1 / 4.1",
+  "rate": "0.008 / 0.035 / 0.203"
+ },
+ "T1_ds60_on": {
+  "pos": "3.7 / 7.7 / 14.1",
+  "course": "0.3 / 0.9 / 2.3",
+  "rate": "0.011 / 0.036 / 0.107"
+ },
+ "T1_ds60_legacy": {
+  "pos_true_time": "5.7 / 54.1 / 1370.9",
+  "pos_uniform": "243.0 / 2693.3 / 6921.4",
+  "speed_ratio": [
+   0.5496927088456371,
+   1.2315688119087478
+  ]
+ },
+ "T2_raw_linear on timestamps": {
+  "pos_p95": 9.615865610867745,
+  "rate_p95_straight": 0.23794415594208487,
+  "rate_p95_turning": 0.2656607548639965
+ },
+ "T2_raw_linear + Savitzky-Golay 100 s": {
+  "pos_p95": 8.468965128605845,
+  "rate_p95_straight": 0.09431675087390551,
+  "rate_p95_turning": 0.09928092676050448
+ },
+ "T2_raw_RTS, positions only": {
+  "pos_p95": 7.710082256863357,
+  "rate_p95_straight": 0.037619911801614836,
+  "rate_p95_turning": 0.05964813497700692
+ },
+ "T2_raw_RTS with receiver SOG/COG": {
+  "pos_p95": 6.098437798634028,
+  "rate_p95_straight": 0.02333180484379333,
+  "rate_p95_turning": 0.026137461109273015
+ },
+ "T2_ds60_linear on timestamps": {
+  "pos_p95": 10.605002679317698,
+  "rate_p95_straight": 0.06326759137951021,
+  "rate_p95_turning": 0.49045044335067356
+ },
+ "T2_ds60_linear + Savitzky-Golay 100 s": {
+  "pos_p95": 10.673985457752105,
+  "rate_p95_straight": 0.04839936391275386,
+  "rate_p95_turning": 0.1765577229839126
+ },
+ "T2_ds60_RTS, positions only": {
+  "pos_p95": 9.137317268699213,
+  "rate_p95_straight": 0.029141486705635204,
+  "rate_p95_turning": 0.09173448201535422
+ },
+ "T2_ds60_RTS with receiver SOG/COG": {
+  "pos_p95": 7.717029187774397,
+  "rate_p95_straight": 0.033854206482575915,
+  "rate_p95_turning": 0.05575054205341158
+ },
+ "T3_Gauss-Markov 3 m + w": {
+  "truth": [
+   0.003,
+   0.003,
+   0.003,
+   0.003
+  ],
+  "plain": 0.03,
+  "holdout": 0.01,
+  "cog": 0.003,
+  "used": 0.003
+ },
+ "T3_same noise, one repo": {
+  "truth": [
+   0.01,
+   0.01,
+   0.01,
+   0.01
+  ],
+  "plain": 0.1,
+  "holdout": 0.03,
+  "cog": 0.03,
+  "used": 0.01
+ },
+ "T3_white 10 m (the assu": {
+  "truth": [
+   0.001,
+   0.001,
+   0.0003,
+   0.001
+  ],
+  "plain": 0.001,
+  "holdout": 0.001,
+  "cog": 0.001,
+  "used": 0.001
+ },
+ "T3b_receiver COG (Doppler), ": {
+  "independent": true,
+  "declared": "2.9 / 6.1 / 10.0",
+  "undeclared": "3.6 / 7.7 / 12.7"
+ },
+ "T3b_course between consecuti": {
+  "independent": false,
+  "declared": "3.6 / 7.7 / 12.7",
+  "undeclared": "3.6 / 7.7 / 12.7"
+ },
+ "T3b_course over two steps": {
+  "independent": false,
+  "declared": "3.6 / 7.7 / 12.7",
+  "undeclared": "3.6 / 7.7 / 12.7"
+ },
+ "T3b_course between moving av": {
+  "independent": true,
+  "declared": "3.6 / 7.7 / 12.7",
+  "undeclared": "3.6 / 7.7 / 12.7"
+ },
+ "T4_30_straight rts": 8.249586815026776,
+ "T4_30_straight linear": 8.921448201115767,
+ "T4_30_turn rts": 8.941050540936773,
+ "T4_30_turn rts+vel": 6.605165036438548,
+ "T4_30_turn linear": 12.700538913289062,
+ "T4_60_straight rts": 8.526831259256628,
+ "T4_60_straight linear": 9.089257522912447,
+ "T4_60_turn rts": 10.313344482115461,
+ "T4_60_turn rts+vel": 7.1347960806714825,
+ "T4_60_turn linear": 27.208784239300446,
+ "T4_90_straight rts": 8.931045509311407,
+ "T4_90_straight linear": 9.164985334733682,
+ "T4_90_turn rts": 15.274911113509201,
+ "T4_90_turn rts+vel": 7.600971454201138,
+ "T4_90_turn linear": 53.79034808389787,
+ "T4_120_straight rts": 11.139768283203429,
+ "T4_120_straight linear": 12.66889928564804,
+ "T4_120_turn rts": 20.816429578022504,
+ "T4_120_turn rts+vel": 9.011558989092176,
+ "T4_120_turn linear": 94.04744194591844,
+ "T4_180_straight rts": 17.578524995906957,
+ "T4_180_straight linear": 21.837780983918506,
+ "T4_180_turn rts": 57.6863524603426,
+ "T4_180_turn rts+vel": 30.335845815200052,
+ "T4_180_turn linear": 204.21586330903912,
+ "T4_300_straight rts": 27.424489963147774,
+ "T4_300_straight linear": 45.11713450661856,
+ "T4_300_turn rts": 164.3144672471514,
+ "T4_300_turn rts+vel": 131.63508779877384,
+ "T4_300_turn linear": 448.76591017145387,
+ "T4_600_straight rts": 77.52965825974773,
+ "T4_600_straight linear": 130.4733205125121,
+ "T4_600_turn rts": 446.53949932338224,
+ "T4_600_turn rts+vel": 404.15796611532556,
+ "T4_600_turn linear": 1057.2509801252631,
+ "T5_rules on": {
+  "injected": 251,
+  "still_used": 0,
+  "false_removals": 0,
+  "pos": "3.4 / 7.3 / 12.3"
+ },
+ "T5_rules off": {
+  "injected": 251,
+  "still_used": 249,
+  "false_removals": 0,
+  "pos": "4.4 / 148.6 / 1169.6"
+ },
+ "T5_hard": {
+  "removed": 0,
+  "pos": "3.7 / 7.6 / 12.9",
+  "pos_turn": "4.7 / 8.1 / 10.0"
+ },
+ "T6": {
+  "truth": 300.0000086424891,
+  "mended": 310.58606651969376,
+  "legacy": 1221.7655420336448
+ },
+ "T7": {
+  "current_yaw": "1.99 / 8.49 / 11.42",
+  "mended_yaw": "0.19 / 0.49 / 0.64",
+  "table_yaw": "0.184 / 0.495 / 0.643",
+  "current_c0": "0.23 / 4.35 / 15.40",
+  "mended_c0": "0.32 / 1.10 / 1.42"
+ },
+ "T7_start_points 0 t": {
+  "straight": "0.26 / 0.84 / 7.46",
+  "turning": "5.83 / 11.54 / 14.02"
+ },
+ "T7_start_tangent of": {
+  "straight": "0.35 / 1.04 / 2.14",
+  "turning": "0.51 / 1.59 / 3.72"
+ },
+ "T7_start_least-squa": {
+  "straight": "0.29 / 0.98 / 4.02",
+  "turning": "0.61 / 1.62 / 4.04"
+ },
+ "T7_scale": {
+  "unscaled": "0.19 / 0.49 / 0.64",
+  "scaled": "1.29 / 3.46 / 4.45",
+  "accepted": 0.8125,
+  "accepted_over_limit": 0.0
+ },
+ "T9": {
+  "decisions": 285,
+  "outcome": "clear",
+  "data_shaped": 1,
+  "routes_accepted": 26,
+  "routes_total": 32
+ },
+ "T12_A_positions": {
+  "pos": "3.5 / 7.1 / 12.4",
+  "course": "0.37 / 1.30 / 3.10"
+ },
+ "T12_A_receiver ": {
+  "pos": "2.9 / 5.9 / 10.1",
+  "course": "0.20 / 0.68 / 1.47"
+ },
+ "T12_B_positions": {
+  "pos": "13.9 / 26.2 / 40.4",
+  "course": "0.31 / 1.05 / 4.35"
+ },
+ "T12_B_receiver ": {
+  "pos": "13.7 / 24.7 / 34.8",
+  "course": "0.24 / 0.72 / 1.98"
+ },
+ "T12_C_positions": {
+  "pos": "12.9 / 27.2 / 43.6",
+  "course": "0.45 / 1.84 / 8.21"
+ },
+ "T12_C_receiver ": {
+  "pos": "12.7 / 25.2 / 38.9",
+  "course": "0.32 / 1.20 / 3.59"
+ },
+ "T12_D_positions": {
+  "pos": "3.6 / 7.7 / 11.9",
+  "course": "0.33 / 1.19 / 3.94"
+ },
+ "T12_D_receiver ": {
+  "pos": "3.0 / 6.4 / 10.0",
+  "course": "0.22 / 0.72 / 2.09"
+ }
+}
