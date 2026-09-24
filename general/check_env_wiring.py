@@ -256,8 +256,8 @@ def main():
     say('# Check of step 4 of the mending plan for part 1: the route chain wired into the environments')
     say('')
     say('Run %s. Code as of: scenario_targets.py %s, attack_scenarios.py %s, ais_prep.py %s. Trace set: %s (%s).' % (
-        datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), stamp(os.path.join(ROOT, 'scenario_targets.py')),
-        stamp(os.path.join(ROOT, 'attack_scenarios.py')), stamp(os.path.join(HERE, 'ais_prep.py')),
+        datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), stamp(os.path.join(HERE, 'scenario_targets.py')),
+        stamp(os.path.join(HERE, 'attack_scenarios.py')), stamp(os.path.join(HERE, 'ais_prep.py')),
         os.path.relpath(TRACE, HERE), stamp(TRACE)))
     say('')
     shapes = ST.load_trace_shapes(TRACE)
