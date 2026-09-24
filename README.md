@@ -37,13 +37,3 @@ python main_attack_ppo_enc.py --trace <out folder>/windows_lonlat_train.npy --sc
 
 One Python (3.10 or newer; 3.14 was used) with the packages in `requirements.txt`: numpy, pandas, matplotlib, pillow, tqdm, gymnasium and torch; scipy only for the legacy comparison. The generators were written for Python 3.10 with the TSGM stack listed in `general/generators/requirements.txt`. Run the scripts from a work directory, because logs and `runs/` land in the current directory; the CPU is faster than a GPU for the 64-unit policy network.
 
-## Removed on 2026-09-24
-
-The repository was reduced to the methods that the extraction and the generation use. The parts below are no longer in the tree; all of them are in the history up to commit 3b9feb0.
-
-- `Ship_envre`: the first environment (Stable-Baselines3 PPO on the ShipAI hull model, Python 3.7). Its `viewer.py` was never committed, so it could not be imported, and nothing in the pipeline used it.
-- `Ship_envre_v2` and `Ship_envre_v3`: a separate build with continuous ship dynamics. Its collision standard, grading and encounter lifecycle live on in `encounter_standard.py`; its own route path was never wired to the mended data step, and the study plan dropped the transfer to it.
-- The first data step, `Train_VAE_full/data_csv2npy.py` and `Ship_envre/interpolation.py` (row-index resampling). The original resampling function is kept in `general/legacy_stage.py` for the comparison in the checks.
-- The generator attempts that the old README marked as not usable: `train_diffusion_full.py`, `Others/train_GAN_custom_full.ipynb` and `Train_wGAN/train_wavegan_full.ipynb`.
-- `Evaluation/scenario_creation.ipynb`, the random pairing of two traces that the scenario builder replaces, and `Evaluation/jsd_matrix.ipynb`, whose metric compares each trace with a distribution fitted to that same trace and cannot rank generators (`review/jsd_probe.py`).
-- The two 2024 obstacle-scene reference trainers `main_ppo.py` and `main_attack_ppo.py`; the attack trainers carry their loop.
