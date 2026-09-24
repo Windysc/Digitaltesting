@@ -48,9 +48,3 @@ All remade parts run on one Python (3.14 was used) with numpy, pandas, matplotli
 
 The original generation scripts were written for Python 3.10 with the default TSGM requirements; the original `Ship_envre` for Python 3.7 with the packages in `requirements.txt`. The remade parts have no dependency on either.
 
-## History of the remade parts
-
-- 2026-09-14: `Ship_envre_v2` and `Ship_envre_v3` were built because the original environment could not learn (no bearing to the target in the observation, a reward that favoured surviving, each trace file projected around its own origin, the sample dimension flattened so every episode used sample 0, no yaw damping in the ship model).
-- 2026-09-15: `PPO_scenario_generate` rebuilt the modules the reference scripts import, then added the collision standard, the attack scenarios, the fixed-track target and full attacker control.
-- 2026-09-18 to 2026-09-21: external review of the data extraction and of the study plan; the mending plan for the data step was checked on synthetic voyages with a known truth (`review/`).
-- 2026-09-24: the mended route chain was wired into the scenario environments (step 4 of the plan) and the review was closed.
