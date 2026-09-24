@@ -1,6 +1,6 @@
 # Check of the mending plan for part 1 (sampling and smoothing) on synthetic voyages with a known truth
 
-Run 2026-09-24 15:36:58. Code as of: ais_prep.py 2026-09-24 15:34:07, synth_ais.py 2026-09-21 13:57:04, check_mending_plan.py 2026-09-24 15:17:06. Every table below was produced by this run.
+Run 2026-09-24 14:45:20. Code as of: ais_prep.py 2026-09-24 14:35:36, synth_ais.py 2026-09-24 14:15:05, check_mending_plan.py 2026-09-24 14:40:50. Every table below was produced by this run.
 
 Development fleet: 24 voyages of 50-80 min, speeds 2-11 m/s, turns of 0.15-0.5 deg/s, Class A report schedule with 20 % message loss, reception gaps of 1-10 min, position error = Gauss-Markov 3 m (100 s) + white 2 m + timestamps rounded to the second. Regimes: raw, ds30 and ds60 (a provider that keeps one report per 30 s / 60 s). The rules of the chain were worked out on this fleet; T12 runs the finished chain on a second one.
 
@@ -221,14 +221,11 @@ Scale: a real-size route inside the arena standard (scale 35 / 244.74 = 0.143, y
 | q = 3e-3 | 7.5 / 6.8 | 0.023 | 3.6 / 2.2 | -0.11 / -0.02 | 5.0 / 5.7 | 0.81 | 1.6 / 2.1 |
 | too little smoothing, q = 10 | 9.9 / 8.0 | 0.284 | 1.5 / 0.8 | -0.72 / -0.71 | 6.1 / 11.4 | 2.69 | 6.4 / 8.4 |
 
-## T9 Compatibility with the existing consumers
+## T9 Compatibility with the consumer of the arrays (EncounterAttackEnv)
 
-| array | v2 route_from_trace speed (trace_dt = 20 s) over the true mean speed, P50 / P95 / max |
-|---|---|
-| legacy (row-index resampling) | 1.91 / 2.31 / 2.35 |
-| mended windows | 0.981 / 0.983 / 0.983 |
+The mended windows are written in the old (n, 100, 2) lon / lat layout.  The environment loads them through the route chain of ais_prep.py and plays the accepted routes back.  (Until 2026-09-24 this table also held the speed that the route model of the removed Ship_envre_v2 build read from the arrays.)
 
-EncounterAttackEnv(trace = mended windows, scale = maritime) runs: 285 decisions, outcome clear, data_shaped = 1.
+EncounterAttackEnv(trace = mended windows, scale = maritime) runs: 285 decisions, outcome clear, data_shaped = 1, routes accepted 26 of 32.
 
 ## T10 Augmentation values: reviewed plan against the first draft
 

@@ -1,6 +1,6 @@
 # Check of step 4 of the mending plan for part 1: the route chain wired into the environments
 
-Run 2026-09-24 15:35:07. Code as of: scenario_targets.py 2026-09-24 15:33:31, attack_scenarios.py 2026-09-24 15:08:41, ais_prep.py 2026-09-24 15:34:07. Trace set: check_out\prep_raw_off\windows_lonlat.npy (2026-09-24 15:19:44).
+Run 2026-09-24 14:52:15. Code as of: scenario_targets.py 2026-09-24 14:35:16, attack_scenarios.py 2026-09-24 14:39:48, ais_prep.py 2026-09-24 14:35:36. Trace set: check_out/prep_raw_off/windows_lonlat.npy (2026-09-24 14:45:27).
 
 ## W1 Loader: one tangent plane per trace, no smoothing
 

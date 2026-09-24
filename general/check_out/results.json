@@ -13,8 +13,8 @@
   "pos_true_time": "4.7 / 11.3 / 492.6",
   "pos_uniform": "624.6 / 3550.5 / 7678.4",
   "speed_ratio": [
-   0.3418754745609071,
-   1.6019803054210169
+   0.34187547456498624,
+   1.601980305420959
   ]
  },
  "T1_ds30_off": {
@@ -31,7 +31,7 @@
   "pos_true_time": "5.2 / 20.8 / 1154.2",
   "pos_uniform": "201.2 / 2747.3 / 7251.9",
   "speed_ratio": [
-   0.538366787563277,
+   0.5383667875584883,
    1.2780936891882195
   ]
  },
@@ -49,49 +49,49 @@
   "pos_true_time": "5.7 / 54.1 / 1370.9",
   "pos_uniform": "243.0 / 2693.3 / 6921.4",
   "speed_ratio": [
-   0.5496927088493615,
+   0.5496927088456371,
    1.2315688119087478
   ]
  },
  "T2_raw_linear on timestamps": {
   "pos_p95": 9.615865610867745,
   "rate_p95_straight": 0.23794415594208487,
-  "rate_p95_turning": 0.2656607548756158
+  "rate_p95_turning": 0.2656607548639965
  },
  "T2_raw_linear + Savitzky-Golay 100 s": {
-  "pos_p95": 8.468965128523646,
-  "rate_p95_straight": 0.0943167508736673,
-  "rate_p95_turning": 0.09928092676017355
+  "pos_p95": 8.468965128605845,
+  "rate_p95_straight": 0.09431675087390551,
+  "rate_p95_turning": 0.09928092676050448
  },
  "T2_raw_RTS, positions only": {
-  "pos_p95": 7.710082256936594,
-  "rate_p95_straight": 0.037619911799446716,
-  "rate_p95_turning": 0.05964813502499166
+  "pos_p95": 7.710082256863357,
+  "rate_p95_straight": 0.037619911801614836,
+  "rate_p95_turning": 0.05964813497700692
  },
  "T2_raw_RTS with receiver SOG/COG": {
-  "pos_p95": 6.09843779839151,
-  "rate_p95_straight": 0.023331804828867354,
-  "rate_p95_turning": 0.026137461106629796
+  "pos_p95": 6.098437798634028,
+  "rate_p95_straight": 0.02333180484379333,
+  "rate_p95_turning": 0.026137461109273015
  },
  "T2_ds60_linear on timestamps": {
-  "pos_p95": 10.605002680028731,
-  "rate_p95_straight": 0.06326759141974146,
-  "rate_p95_turning": 0.4904504433450321
+  "pos_p95": 10.605002679317698,
+  "rate_p95_straight": 0.06326759137951021,
+  "rate_p95_turning": 0.49045044335067356
  },
  "T2_ds60_linear + Savitzky-Golay 100 s": {
   "pos_p95": 10.673985457752105,
-  "rate_p95_straight": 0.048399363916025624,
-  "rate_p95_turning": 0.1765577229569381
+  "rate_p95_straight": 0.04839936391275386,
+  "rate_p95_turning": 0.1765577229839126
  },
  "T2_ds60_RTS, positions only": {
   "pos_p95": 9.137317268699213,
   "rate_p95_straight": 0.029141486705635204,
-  "rate_p95_turning": 0.09173448203175809
+  "rate_p95_turning": 0.09173448201535422
  },
  "T2_ds60_RTS with receiver SOG/COG": {
   "pos_p95": 7.717029187774397,
-  "rate_p95_straight": 0.03385420646665882,
-  "rate_p95_turning": 0.055750542027130874
+  "rate_p95_straight": 0.033854206482575915,
+  "rate_p95_turning": 0.05575054205341158
  },
  "T3_Gauss-Markov 3 m + w": {
   "truth": [
@@ -166,8 +166,8 @@
  "T4_90_turn linear": 53.79034808389787,
  "T4_120_straight rts": 11.139768283203429,
  "T4_120_straight linear": 12.66889928564804,
- "T4_120_turn rts": 20.816429578022507,
- "T4_120_turn rts+vel": 9.011558989091423,
+ "T4_120_turn rts": 20.816429578022504,
+ "T4_120_turn rts+vel": 9.011558989092176,
  "T4_120_turn linear": 94.04744194591844,
  "T4_180_straight rts": 17.578524995906957,
  "T4_180_straight linear": 21.837780983918506,
@@ -181,7 +181,7 @@
  "T4_300_turn linear": 448.76591017145387,
  "T4_600_straight rts": 77.52965825974773,
  "T4_600_straight linear": 130.4733205125121,
- "T4_600_turn rts": 446.5394993233823,
+ "T4_600_turn rts": 446.53949932338224,
  "T4_600_turn rts+vel": 404.15796611532556,
  "T4_600_turn linear": 1057.2509801252631,
  "T5_rules on": {
@@ -232,8 +232,11 @@
   "accepted_over_limit": 0.0
  },
  "T9": {
-  "old": "1.91 / 2.31 / 2.35",
-  "new": "0.981 / 0.983 / 0.983"
+  "decisions": 285,
+  "outcome": "clear",
+  "data_shaped": 1,
+  "routes_accepted": 26,
+  "routes_total": 32
  },
  "T12_A_positions": {
   "pos": "3.5 / 7.1 / 12.4",
