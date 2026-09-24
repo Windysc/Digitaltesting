@@ -1,12 +1,14 @@
 # Rebuilt modules for `main_ppo.py` / `main_attack_ppo.py` (2026-09-15)
 
+> Note (2026-09-24, repository merge). This log was written while the code lived in `PPO_scenario_generate/` with the data step in `data_prep/`; both now form the flat folder `general/`, and the paths below are relative to it. The two 2024 reference scripts `main_ppo.py` / `main_attack_ppo.py` (obstacle scenes) and the `Ship_envre`, `Ship_envre_v2` and `Ship_envre_v3` builds discussed here were removed from the repository in that merge (last present in commit 3b9feb0). The sections that report their runs are kept as the record of how the present environments and their numbers were derived.
+
 The two reference scripts on the Desktop (dated 2024-02-08) import four things
 that were not on this machine and are not public: `PPO`, and
 `MassTestingEnv, ownship, navigation_target, obstacle` from `env_moving_obj`
 (navigation) and `env_moving_attack` (attack).  They are rebuilt here from the
 contract the scripts impose, next to the scripts, so both run **unmodified**.
-Since 2026-09-15 everything lives in `Desktop/PPO_scenario_generate/` (scripts, rebuilt
-modules, `viz_tool.py`, `runs/`).
+Since 2026-09-15 everything lives in one folder (`PPO_scenario_generate/` on the owner's machine,
+`general/` in the repository since 2026-09-24): scripts, rebuilt modules, `viz_tool.py`, `runs/`.
 
 | file | role |
 |---|---|
@@ -415,8 +417,8 @@ Per-scenario scorecard of the six full-control checkpoints (best checkpoint, det
 Until now a `--trace` file reached the target through one global projection, a box-5 point average, a rotation on
 points 0 to 3 and a segment-heading playback.  On correctly timed arrays that chain moved routes up to 215 m off the
 window polyline, left the shapes unscaled while every other length of the standard is multiplied by 0.143, and produced
-heading steps of up to 11.5 deg/s at the route vertices (`data_prep/check_out/results.md`, T7).  The chain of
-`data_prep/ais_prep.py` (reviewed with Codex, `review/MENDING_PLAN_PART1.md`) is now wired in:
+heading steps of up to 11.5 deg/s at the route vertices (`check_out/results.md`, T7).  The chain of
+`ais_prep.py` (reviewed with Codex, `../review/MENDING_PLAN_PART1.md`) is now wired in:
 
 | step | where | what |
 |---|---|---|
@@ -427,7 +429,7 @@ heading steps of up to 11.5 deg/s at the route vertices (`data_prep/check_out/re
 | report | `EncounterAttackEnv.evaluation`, `ScenarioAttackEnv.evaluation` | `data_shaped`, `route_smooth_m`, `route_max_yaw_deg_s` |
 
 Without a trace nothing changes: the routes are the straight chords as before and `check_attack_scenarios.selftest`
-passes at both scales.  Checks in `data_prep/check_env_wiring.py` (output `data_prep/check_out/results_env_wiring.md`,
+passes at both scales.  Checks in `check_env_wiring.py` (output `check_out/results_env_wiring.md`,
 synthetic windows of the plan check; all eight scenarios x 3 seeds x 2 attackers per scale, yaw rate from the heading the
 target reports at every sub-step, `TargetShip.psi_track`): 26 of 32 traces accepted at both scales (23 % after a smoothing
 of at most 150 m; the 50 m displacement bound is two-sided); the played heading stays under the limit (arena 1.949 against
@@ -441,4 +443,4 @@ all trained without a trace, so they are unaffected.  `main_attack_ppo_scen.py -
 pursuit under a yaw-rate limit and keep `route_from_trace`.  With `data_prep` arrays pass `--trace_dt 20 --smooth_sigma 0`
 (the point-count smoothing stays the CLI default for the legacy arrays); the data scenario then takes the smoother's median
 speed of the window when `windows_speed_course.npy` lies next to `windows_lonlat.npy`; v3 `straighten_tol` defaults to
-50 m and is measured over the whole route before the extension.  Review record: `.aris/traces/research-review/2026-09-21_run03/round4.md`.
+50 m and is measured over the whole route before the extension.  Review record: `../.aris/traces/research-review/2026-09-21_run03/round4.md`.

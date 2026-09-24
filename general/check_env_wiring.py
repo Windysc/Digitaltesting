@@ -8,10 +8,9 @@ Uses the mended windows of the synthetic development fleet (check_out/prep_raw_o
 check_mending_plan.py) as the trace set.  Every check states what it compares and passes or fails
 on a stated bound; the script exits with 1 when any check fails.
 
-Scope: the two fixed-track environments of PPO_scenario_generate (EncounterAttackEnv, ScenarioAttackEnv).
-Ship_envre_v2 / v3 are NOT covered: their targets steer on a polyline route (pure pursuit with a yaw-rate
-limit) and keep their own route_from_trace; with data_prep arrays they take the smoother's median speed
-and are run with --smooth_sigma 0 (README_v2 / README_v3).
+Scope: the two fixed-track environments of the pipeline (EncounterAttackEnv, ScenarioAttackEnv).  The
+earlier Ship_envre_v2 / v3 builds, whose targets steered on a polyline route by pure pursuit and kept
+their own route_from_trace, were removed from the repository on 2026-09-24 and are not covered.
 """
 import datetime
 import math
@@ -20,10 +19,8 @@ import sys
 
 import numpy as np
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
+HERE = os.path.dirname(os.path.abspath(__file__))     # the general folder: ais_prep.py and the environments side by side
 sys.path.insert(0, HERE)
-sys.path.insert(0, ROOT)
 import ais_prep as A                    # noqa: E402
 import env_moving_obj as E              # noqa: E402
 import encounter_standard as S          # noqa: E402

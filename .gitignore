@@ -3,22 +3,18 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
-# training outputs and logs of the remade parts (regenerate with the scripts)
-PPO_scenario_generate/runs/
-PPO_scenario_generate/PPO_logs/
-Ship_envre_v2/runs/
-Ship_envre_v3/runs/
-Ship_envre_v3/_experiments/
+# training outputs and logs of the pipeline (regenerate with the scripts; they land in the current directory)
+**/runs/
+**/PPO_logs/
 **/scenes/
 *.log
 
-# large renders (animate_*.py, viz_tool.py rebuild them)
+# large renders (viz_tool.py rebuilds them)
 *.gif
 
 # synthetic data of the checks (check_mending_plan.py fleet / synth_ais.py rebuild them)
-Ship_envre_v2/data/
-PPO_scenario_generate/data_prep/check_out/csv*/
-PPO_scenario_generate/data_prep/check_out/prep_*/
-PPO_scenario_generate/data_prep/check_out/env_tmp/
-PPO_scenario_generate/data_prep/check_out/*.npz
-PPO_scenario_generate/data_prep/check_out/*.bak
+general/check_out/csv*/
+general/check_out/prep_*/
+general/check_out/env_tmp/
+general/check_out/*.npz
+general/check_out/*.bak

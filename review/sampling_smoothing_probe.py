@@ -14,7 +14,7 @@ AIS reports every 2-10 s while turning/fast plus 3 gaps of 2-6 min, GPS noise 5 
 import math, sys, numpy as np
 from scipy import interpolate
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # PPO_scenario_generate
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'general'))   # the general folder (was PPO_scenario_generate)
 from scenario_targets import smooth_path as box_smooth, rotate_translate
 
 R = 6371000.0

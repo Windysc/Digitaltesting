@@ -2,7 +2,7 @@
 attack_scenarios.py -- multiple attack scenarios under the Ship_envre_v3 scenario
 definition, with the Ship_envre_v2 collision standard (encounter_standard.py).
 
-Definition (v3 "encounter lifecycle", README_v3.md): an episode is ONE
+Definition (the "encounter lifecycle" of the earlier Ship_envre_v3 build): an episode is ONE
 encounter.  Neither ship has a destination and there is no time limit;
 the encounter runs approach -> action -> passing -> clear.
   success (+1)  severity >= success_severity (2 = domain violation) held for
@@ -16,7 +16,7 @@ collision cannot be stepped over.
 
 Target: NOT an agent, sails a FIXED TRACK (route playback) at the cruise speed;
 routes may be shaped by generated traces (--trace).  A trace becomes a route
-through data_prep/ais_prep.py (mending plan part 1, step 4, 2026-09-24): C2
+through ais_prep.py (mending plan part 1, step 4, 2026-09-24): C2
 spline table every 5 m, scaled by the standard's scale like every other length,
 checked against the turn rate (traces that cannot meet it within 50 m are left
 out; the count is in env.trace_info), placed along its own start tangent and

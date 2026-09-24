@@ -1,6 +1,6 @@
 """
 viz_tool.py -- visualisation for PPO scenario-generation runs
-(main_ppo.py / main_attack_ppo.py with the rebuilt MassTestingEnv).
+(main_attack_ppo_enc.py / main_attack_ppo_scen.py with the rebuilt MassTestingEnv).
 
 Sub-commands, all writing under <run>/viz/ (<run> = the --save_dir of a
 training run: args.json, train_logs/, eval_logs/, models/):
@@ -63,28 +63,6 @@ OUTCOME_COLOURS = {'success': 'tab:green', 'collision': 'tab:red', 'off_map': 't
 
 
 # ------------------------------------------------------------------ scenarios
-def scenario_tables():
-    """Obstacle / destination definitions exactly as in the two reference scripts."""
-    nav = {
-        'turn_static': dict(id=1, lat=450, long=1300, sp=0, cog=90, L=400, W=50, Direction=0, risk_range=500),
-        'turn_move': dict(id=3, lat=450, long=0, sp=8, cog=0, L=200, W=50, Direction=0, risk_range=500),
-        'line_static': dict(id=2, lat=0, long=1000, sp=0, cog=90, L=400, W=50, Direction=90, risk_range=500),
-        'line_move': dict(id=2, lat=-1000, long=1000, sp=9, cog=90, L=200, W=50, Direction=90, risk_range=500),
-    }
-    attack = {
-        'line_move': dict(id=2, lat=-400, long=2000, sp=6, cog=180, L=200, W=50, Direction=180, risk_range=500),
-        'line_move2': dict(id=3, lat=-200, long=2000, sp=6, cog=-145, L=200, W=50, Direction=-145, risk_range=500),
-        'line_move_front_turn': dict(id=2, lat=-400, long=2000, sp=6, cog=180, L=200, W=50, Direction=180, risk_range=500),
-        'line_move_back_turn': dict(id=2, lat=-400, long=0, sp=7, cog=0, L=200, W=50, Direction=180, risk_range=500),
-        'line_move_side_turn': dict(id=2, lat=-1000, long=1500, sp=4, cog=90, L=200, W=50, Direction=90, risk_range=500),
-    }
-    dests = {
-        'line': dict(lat=0, long=1750, direction=0, target_deviation_distance=200, target_deviation_direction=15),
-        'turn': dict(lat=750, long=1500, direction=90, target_deviation_distance=200, target_deviation_direction=15),
-    }
-    return nav, attack, dests
-
-
 def load_args(run):
     with open(os.path.join(run, 'args.json'), encoding='utf-8') as f:
         return json.load(f)
@@ -133,23 +111,9 @@ def build_env(run, task=None, save_dir=None):
                                 save_dir=save_dir or os.path.join(run, 'viz'), seed=args.get('seed', 0) + 1000,
                                 attack_range=(args.get('attack_range') or None))
         return env, args, 'attack'
-    nav, attack, dests = scenario_tables()
-    table = attack if task == 'attack' else nav
-    obst_id, dest_id = args.get('obst_id'), args.get('dest_id')
-    if obst_id not in table:
-        raise SystemExit('obst_id %r is not a %s scenario; known: %s' % (obst_id, task, sorted(table)))
-    if dest_id not in dests:
-        raise SystemExit('dest_id %r unknown; known: %s' % (dest_id, sorted(dests)))
-    own = E.ownship(0, 0, 0, 0, 0, 0)
-    ob = E.obstacle(**table[obst_id])
-    nt = E.navigation_target(**dests[dest_id])
-    cls = A.MassTestingEnv if task == 'attack' else E.MassTestingEnv
-    env = cls(own, [], [ob], nt, duration=args.get('duration', 60000),
-              decision_interval=args.get('decision_interval', 600),
-              reward_type=args.get('reward_type', 'final_attack_reward' if task == 'attack' else 'final_step_reward'),
-              X_LEN=args.get('map_x_size', 2000), Y_LEN=args.get('map_y_size', 1000),
-              save_dir=save_dir or os.path.join(run, 'viz'))
-    return env, args, task
+    raise SystemExit('%s: args.json has neither "dcpa_band" (main_attack_ppo_enc.py) nor "scenario" '
+                     '(main_attack_ppo_scen.py); runs of the obstacle-scene trainers removed on 2026-09-24 '
+                     'cannot be rebuilt' % run)
 
 
 def find_checkpoint(run, args, which='best'):

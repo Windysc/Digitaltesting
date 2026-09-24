@@ -1,9 +1,9 @@
 """
-PPO.py -- the `PPO` class that Desktop/main_ppo.py and main_attack_ppo.py import.
+PPO.py -- the `PPO` class that main_attack_ppo_enc.py and main_attack_ppo_scen.py import.
 
 Rebuilt 2026-09-15.  Same constructor and methods as the public PPO-PyTorch
-reference the scripts were written against, taken from the tested
-Digitaltesting Ship_envre_v2/ppo_agent.py:
+reference the scripts were written against (taken from the ppo_agent.py of the
+earlier Ship_envre_v2 build, which left the repository on 2026-09-24):
 
     agent = PPO(state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs,
                 eps_clip, has_continuous_action_space, action_std_init)

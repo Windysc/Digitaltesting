@@ -1,10 +1,11 @@
 """
-run_matrix.py -- batch runner for scenario x reward x seed matrices of the two
-reference trainers (main_ppo.py, main_attack_ppo.py), with seed aggregation.
+run_matrix.py -- batch runner for scenario x reward x seed matrices of the attack
+trainers (main_attack_ppo_enc.py, task enc, the default; main_attack_ppo_scen.py,
+task scen), with seed aggregation.
 
-  python run_matrix.py --out runs/scale2 --episodes 6000 --eval_every 500 --num_eval 20 \
-                       --seeds 1 2 3 --parallel 10 --threads 2
-  python run_matrix.py --out runs/scale2 --summary-only        # re-aggregate without training
+  python run_matrix.py --out runs/enc_full --tasks enc --control full --enc_scenarios mix --bands passing \
+                       --seeds 1 2 3 --episodes 3000 --eval_every 250 --num_eval 24
+  python run_matrix.py --out runs/enc_full --summary-only        # re-aggregate without training
 
 Jobs are skipped when <out>/<name>/eval_logs/eval_result.txt already reaches the
 requested episode count, so an interrupted matrix can be resumed.  Each job's
@@ -28,10 +29,6 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-NAV_SCENARIOS = [('line_static', 'line'), ('line_move', 'line'), ('turn_static', 'turn'), ('turn_move', 'turn')]
-ATK_SCENARIOS = [('line_move', 'line'), ('line_move2', 'line'), ('line_move_back_turn', 'line'),
-                 ('line_move_side_turn', 'line')]
-NAV_REWARDS = ['final_step_reward', 'dense_step_reward']
 SCEN_SCENARIOS = ['head_on', 'crossing_starboard', 'crossing_port', 'mix']   # main_attack_ppo_scen.py
 ENC_SCENARIOS = ['mix']                                                     # main_attack_ppo_enc.py
 ATK_REWARDS = ['final_attack_reward', 'dense_attack_reward']
@@ -44,7 +41,7 @@ def family(reward_type):
 
 def make_jobs(args):
     jobs = []
-    if args.tasks and 'enc' in args.tasks:
+    if 'enc' in args.tasks:
         for scen in (args.enc_scenarios or ENC_SCENARIOS):
             for band in args.bands:
                 for reward in ATK_REWARDS:
@@ -53,7 +50,7 @@ def make_jobs(args):
                                                       '_full' if args.control == 'full' else '', family(reward), seed)
                         jobs.append(dict(name=name, script='main_attack_ppo_enc.py', enc_scenario=scen, band=band,
                                          reward=reward, seed=seed))
-    if not args.tasks or 'scen' in args.tasks:
+    if 'scen' in args.tasks:
         for scen in (args.scenarios or SCEN_SCENARIOS):
             for auto in args.automation:
                 for reward in ATK_REWARDS:
@@ -61,15 +58,6 @@ def make_jobs(args):
                         name = 'scen_%s_%s_%s_s%d' % (scen, auto, family(reward), seed)
                         jobs.append(dict(name=name, script='main_attack_ppo_scen.py', scenario=scen, automation=auto,
                                          reward=reward, seed=seed))
-    for task, script, scen, rewards in (('nav', 'main_ppo.py', NAV_SCENARIOS, NAV_REWARDS),
-                                        ('atk', 'main_attack_ppo.py', ATK_SCENARIOS, ATK_REWARDS)):
-        if args.tasks and task not in args.tasks:
-            continue
-        for obst, dest in scen:
-            for reward in rewards:
-                for seed in args.seeds:
-                    name = '%s_%s_%s_s%d' % (task, obst, family(reward), seed)
-                    jobs.append(dict(name=name, script=script, obst=obst, dest=dest, reward=reward, seed=seed))
     return jobs
 
 
@@ -104,8 +92,6 @@ def run_job(job, args):
             cmd += ['--trace', args.trace, '--trace_scale', str(args.trace_scale)]
         if args.attack_range > 0:
             cmd += ['--attack_range', str(args.attack_range)]
-    else:
-        cmd += ['--obst_id', job['obst'], '--dest_id', job['dest']]
     t0 = time.time()
     with open(os.path.join(run_dir, 'stdout.log'), 'w', encoding='utf-8', errors='replace') as log:
         rc = subprocess.call(cmd, cwd=HERE, stdout=log, stderr=subprocess.STDOUT, env=env)
@@ -161,9 +147,8 @@ def summarise(out):
         elif 'scenario' in a:
             task = 'scen'
             key = (task, a.get('scenario'), a.get('automation'), family(a.get('reward_type')))
-        else:
-            task = 'atk' if 'attack' in a.get('reward_type', '') else 'nav'
-            key = (task, a.get('obst_id'), a.get('dest_id'), family(a.get('reward_type')))
+        else:                       # a run of the obstacle-scene trainers removed on 2026-09-24: not summarised
+            continue
         reach = ev[ev[:, 3] >= 1.0, 0] if len(ev) else np.zeros(0)
         reach80 = ev[ev[:, 3] >= 0.8, 0] if len(ev) else np.zeros(0)
         runs.append(dict(run=os.path.basename(run_dir), task=task, obst_id=key[1], dest_id=key[2], reward=key[3],
@@ -227,7 +212,7 @@ def summarise(out):
                 mean = np.mean([ev[:m, col_idx] for ev in curves], axis=0)
                 ax.plot(curves[0][:m, 0], mean, '-', lw=2.2, color=REWARD_COLOUR[fam],
                         label='%s (n=%d)' % (fam, len(curves)))
-            ax.set_title('%s | %s / %s' % ({'atk': 'attack', 'nav': 'navigate', 'scen': 'scenario attack', 'enc': 'encounter attack'}[task], obst, dest), fontsize=10)
+            ax.set_title('%s | %s / %s' % ({'scen': 'scenario attack', 'enc': 'encounter attack'}[task], obst, dest), fontsize=10)
             ax.set_xlabel('training episode')
             if col_idx == 3:
                 ax.set_ylim(-0.02, 1.02)
@@ -249,12 +234,13 @@ def summarise(out):
 # --------------------------------------------------------------------- main
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--out', default='runs/scale2')
+    p.add_argument('--out', default='runs/matrix')
     p.add_argument('--episodes', type=int, default=6000)
     p.add_argument('--eval_every', type=int, default=500)
     p.add_argument('--num_eval', type=int, default=20)
     p.add_argument('--seeds', type=int, nargs='+', default=[1, 2, 3])
-    p.add_argument('--tasks', nargs='*', choices=['nav', 'atk', 'scen', 'enc'], default=None)
+    p.add_argument('--tasks', nargs='*', choices=['scen', 'enc'], default=['enc'],
+                   help='enc = main_attack_ppo_enc.py (default), scen = main_attack_ppo_scen.py')
     p.add_argument('--enc_scenarios', nargs='*', default=None, help='enc task: scenario specs (default mix)')
     p.add_argument('--bands', nargs='*', default=['passing'], help='enc task: initial DCPA bands')
     p.add_argument('--scale', default='arena', help='enc task: collision-standard scale')

@@ -1,15 +1,11 @@
 """
-main_attack_ppo_enc.py -- attack trainer for multiple attack scenarios under the
-Ship_envre_v3 scenario definition (one encounter per episode, lifecycle
-approach / action / passing / clear) with the Ship_envre_v2 collision
-standard (CPA warning, ship domain, collision), 2026-09-15.
+main_attack_ppo_scen.py -- scenario-aware copy of the 2024 reference script main_attack_ppo.py
+(2026-09-15; the reference script itself left the repository on 2026-09-24).
 
-Same training / evaluation loop as main_attack_ppo.py / main_attack_ppo_scen.py;
-the environment is attack_scenarios.EncounterAttackEnv: fixed-track target at the cruise
-speed, scenario catalogue x initial DCPA band, attacker with full control of the six
-ownship parameters inside set limits (--control full, default: position area, speed,
-acceleration, turn rate, course change, action levels) or turn-only (--control turn).
-Evaluation cycles through the selected scenarios so each is scored evenly.
+Identical training / evaluation loop; the hand-placed obstacle branches are
+replaced by ScenarioAttackEnv (scenario_targets.py): COLREG-family target
+ships generated per episode, equal speeds, steady course-holding target.
+Evaluation cycles through the families so a mix is scored evenly.
 """
 import os
 import glob
@@ -40,7 +36,7 @@ import pdb
 
 from PPO import PPO
 from env_moving_obj import ownship
-from attack_scenarios import EncounterAttackEnv, SCENARIO_NAMES, BANDS
+from scenario_targets import ScenarioAttackEnv, SCENARIOS
 
 
 def plot_durations(episode_returns, title='Training...', average_duration=10, show_result=False):
@@ -102,7 +98,7 @@ def train(args):
 
     ##Step1:own ship (starts at the cruise speed, equal to the target's)
     own_ship = ownship(0, 0, 0, 0, 0, 0)
-    ##Step2/3: target ships are generated per episode by attack_scenarios (scenario catalogue x DCPA band)
+    ##Step2/3: target ships are generated per episode by scenario_targets (COLREG families)
     ob_list = []
     nt = None
 
@@ -122,22 +118,16 @@ def train(args):
     with open(f'{save_dir}/args.json', 'wt') as f:
         json.dump(vars(args), f, indent=4)
 
-    eval_id = f'enc_{args.scenario}_{args.dcpa_band}'
+    eval_id = f'scen_{args.scenario}'
 
-    enc_kw = dict(scenario=args.scenario, dcpa_band=args.dcpa_band, scale=args.scale, cruise_speed=args.cruise_speed,
-                  control=args.control, v_range=parse_range(args.speed_range), a_range=parse_range(args.accel_range),
-                  cog_limit=args.cog_limit, long_range=parse_range(args.long_range),
-                  lat_range=parse_range(args.lat_range), acc_levels=args.acc_levels, rot_levels=args.rot_levels,
-                  turn_rate_deg=(args.turn_rate if args.turn_rate > 0 else None), trace=args.trace or None,
-                  success_severity=args.success_severity, hold_steps=args.hold_steps,
-                  max_encounter_s=(args.max_encounter_s if args.max_encounter_s > 0 else None),
-                  decision_interval=args.decision_interval, reward_type=args.reward_type, save_dir=args.save_dir)
-    env = EncounterAttackEnv(own_ship, cycle_scenarios=False, seed=args.seed, **enc_kw)
-    print('attack scenarios', env.names, '| DCPA band', args.dcpa_band, '| turn rate %.2f deg/s' % env.turn_rate)
-    print(env.std)
-    print('attacker limits', env.limits)
-    print('actions', env.action_names)
-    print('safety cap', env.max_decisions, 'decisions | observation', env.obs_dim, 'values | map', env.map_box)
+    scen_kw = dict(scenario=args.scenario, cruise_speed=args.cruise_speed, trace=args.trace or None,
+                   trace_scale=args.trace_scale, automation=args.automation, turn_rate_deg=args.turn_rate,
+                   speed_control=bool(args.speed_control), duration=args.duration,
+                   decision_interval=args.decision_interval, reward_type=args.reward_type,
+                   X_LEN=args.map_x_size, Y_LEN=args.map_y_size, save_dir=args.save_dir,
+                   attack_range=(args.attack_range if args.attack_range > 0 else None))
+    env = ScenarioAttackEnv(own_ship, cycle_scenarios=False, seed=args.seed, **scen_kw)
+    print('scenario families', env.families, '| cruise', args.cruise_speed, 'm/s | target automation', args.automation)
     
     with open(f'{train_log_dir}/train_result.txt', 'w') as f:
         f.write(f'Episode AverageReturn Lens Success \n')
@@ -148,7 +138,7 @@ def train(args):
     # with open(f'{train_log_dir}/train_action.txt', 'w') as f:
     #     f.write(f'Episode action_list\n')
 
-    eval_env = EncounterAttackEnv(own_ship, cycle_scenarios=True, seed=args.seed + 1000, **enc_kw)
+    eval_env = ScenarioAttackEnv(own_ship, cycle_scenarios=True, seed=args.seed + 1000, **scen_kw)
     
     
     # eval_envs_list.append(eval_env)
@@ -487,20 +477,12 @@ def eval(env, ppo_agent, max_ep_len=1000):
         # ppo_agent.buffer.clear()
     return eps_return, eps_steps, eps_success, eps_a, eps_action, evaluation_dict
 
-def parse_range(text):
-    """'lo,hi' -> (lo, hi); empty -> None."""
-    if not text:
-        return None
-    lo, hi = (float(v) for v in str(text).split(','))
-    return (lo, hi)
-
-
 def gen_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--save_dir",
         type=str,
-        default='runs/encounter/logs',
+        default='runs/scenario/logs',
         help=(
             "Directory path to save output files."
             " If it does not exist, it will be created."
@@ -525,25 +507,16 @@ def gen_args():
     parser.add_argument("--render", type=int, default=0)
     parser.add_argument("--reward_type", type=str, default='final_attack_reward')
     parser.add_argument("--eval_id", default='scenario')
-    parser.add_argument("--scenario", type=str, default='mix',
-                        help='attack scenario, comma list or group: ' + ', '.join(SCENARIO_NAMES)
-                             + '; groups head_on, crossing_starboard, crossing_port, crossing, parallel, mix')
-    parser.add_argument("--dcpa_band", type=str, default='passing', help='initial DCPA band: ' + ' | '.join(BANDS))
-    parser.add_argument("--scale", type=str, default='arena', help='collision-standard scale: arena | maritime | <factor>')
-    parser.add_argument("--cruise_speed", type=float, default=6.0, help='m/s, attacker and target (equal speeds)')
+    parser.add_argument("--scenario", type=str, default='mix', help='head_on | crossing_starboard | crossing_port | mix')
+    parser.add_argument("--cruise_speed", type=float, default=6.0, help='m/s, own ship and target (equal speeds)')
     parser.add_argument("--trace", type=str, default='', help='(n,T,2) lon/lat .npy of generated traces for route shapes')
-    parser.add_argument("--turn_rate", type=float, default=0.0, help='deg/s; 0 = turning radius 5 L of the standard')
-    parser.add_argument("--success_severity", type=int, default=2, help='2 = domain violation, 3 = collision')
-    parser.add_argument("--hold_steps", type=int, default=2, help='decisions the success severity must be held')
-    parser.add_argument("--max_encounter_s", type=float, default=0.0, help='safety cap in s; 0 = 6 x the longest meeting time')
-    parser.add_argument("--control", type=str, default='full', help='full: acceleration and turn within the limits below; turn: turn only at the cruise speed')
-    parser.add_argument("--speed_range", type=str, default='3,12', help='attacker speed limits lo,hi [m/s] (full control; must contain the cruise speed)')
-    parser.add_argument("--accel_range", type=str, default='-0.1,0.1', help='attacker acceleration limits lo,hi [m/s^2] (full control)')
-    parser.add_argument("--cog_limit", type=float, default=180.0, help='max course change from the start course [deg]; 180 = free')
-    parser.add_argument("--long_range", type=str, default='', help='attacker east (long) position limits lo,hi [m], start at 0; empty = encounter map')
-    parser.add_argument("--lat_range", type=str, default='', help='attacker north (lat) position limits lo,hi [m]; empty = encounter map')
-    parser.add_argument("--acc_levels", type=int, default=3, help='odd number of acceleration levels (full control)')
-    parser.add_argument("--rot_levels", type=int, default=3, help='odd number of turn-rate levels (full control); --turn_rate is the limit')
+    parser.add_argument("--trace_scale", type=float, default=1.0,
+                        help='length factor applied to the trace shapes before they enter the arena (1.0 = full size; '
+                             '0.143 = the encounter standard\'s arena scale); traces over the turn rate are left out')
+    parser.add_argument("--automation", type=str, default='fixed', help='target: fixed (route playback, default) | none (= fixed) | manual | autonomous')
+    parser.add_argument("--turn_rate", type=float, default=1.0, help='deg/s for both ships')
+    parser.add_argument("--speed_control", type=int, default=0, help='1: own ship may also change speed (9 actions)')
+    parser.add_argument("--attack_range", type=float, default=0.0, help='success distance to the target hull in m (0 = one target length)')
     args = parser.parse_args()
 
     # BATCH_SIZE is the number of transitions sampled from the replay buffer

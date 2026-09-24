@@ -1,9 +1,10 @@
 """
-env_moving_obj.py -- MassTestingEnv for Desktop/main_ppo.py (navigation task).
+env_moving_obj.py -- world model and base MassTestingEnv (navigation task) of the scenario environments.
 
-Rebuilt 2026-09-15 from the contract that main_ppo.py / main_attack_ppo.py
-impose on the module (the Feb-2024 original is neither on this machine nor
-public).  env_moving_attack.py derives the attack task from this file.
+Rebuilt 2026-09-15 from the contract that the 2024 reference scripts main_ppo.py /
+main_attack_ppo.py imposed on the module (the Feb-2024 original is not public; the
+two scripts left the repository on 2026-09-24, their loop lives on in the attack
+trainers).  env_moving_attack.py derives the attack task from this file.
 
 World model
 -----------

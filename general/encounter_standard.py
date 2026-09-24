@@ -1,8 +1,8 @@
 """
-encounter_standard.py -- the collision standard of Ship_envre_v2 / Ship_envre_v3,
-ported to the PPO_scenario_generate environments (2026-09-15).
+encounter_standard.py -- the collision standard of the earlier Ship_envre_v2 / v3
+builds, ported to the scenario environments of this folder (2026-09-15).
 
-Sources (Desktop/Digitaltesting-main/Digitaltesting-main):
+Sources (the v2 / v3 builds, in the repository history up to commit 3b9feb0):
   Ship_envre_v2/encounter.py   DCPA / TCPA, ship domain, CRI, severity 0-3, COLREG type
   Ship_envre_v2/grading.py     event grade 0-3 and event score 0-100
   Ship_envre_v2/scenarios.py   encounter geometry (course difference, meeting time, DCPA offset)

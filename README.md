@@ -1,50 +1,49 @@
 # Digitaltesting
 
-Code and documentation for the digital testing of MASS (maritime autonomous surface ships), built on the ShipAI basis: generated AIS traces feed scenario environments in which a reinforcement-learning agent creates intentional safety-critical encounters.
+Digital testing of maritime autonomous surface ships (MASS). A reinforcement-learning adversary generates safety-critical encounter scenarios for stress-testing simplified reactive collision-avoidance controllers, on target routes shaped by AIS trace data. The pipeline has two stages, extraction and generation, and all of its code is in the folder `general/`; `review/` holds the records of the external review that fixed the scope.
 
-The workflow has two parts.
+## Research scope
 
-1. **Trace following.** The adversarial ship enters at the start of a route and moves along it according to generated and recorded route data.
-2. **Free chase.** Once both ships reach the selected area the agent is free to act and the catch-up race begins.
+**Extraction.** AIS tracks (CSV reports with timestamps) become trace arrays with a valid time base. `general/ais_prep.py` cleans the reports, splits the voyages into train / val / test before any estimate, removes bad fixes by a distance rule, splits at reception gaps, smooths on the real timestamps (Kalman / RTS, strength chosen inside physical bounds), resamples on an absolute 20 s grid and writes windows of 100 points in the `(n, 100, 2)` lon / lat layout, together with speed and course per point and an aggregate report that can be shared while the data stay private. The same module turns a window into a scenario route: a C2 spline tabulated by arc length with heading and curvature, checked against the target ship's turn rate at the scale of the collision standard, so that what is checked is what is sailed. Synthetic fleets with a known truth (`synth_ais.py`) and twelve checks (`check_mending_plan.py`) establish the chain. The trace generators in `general/generators/` (TSGM VAE and diffusion models) trained on the windows produce further traces in the same layout.
 
-## Folders
+**Generation.** The encounter environment (`env_moving_obj.py`, `env_moving_attack.py`, `scenario_targets.py`, `attack_scenarios.py`) places a target ship on a fixed track, a straight chord or a data-shaped route, under the collision standard of `encounter_standard.py`: CPA warning, ship domain and collision as severity levels, the collision-risk index and the COLREG encounter type, with the encounter lifecycle approach, action, passing and clear. Eight attack scenarios (head-on on either side, crossing from either side ahead or astern, parallel lanes) with an exact initial DCPA band form the catalogue. A PPO attacker (`PPO.py`, `main_attack_ppo_enc.py`) with full control of the six own-ship parameters inside set limits has to create the event; the scripted baselines hold course, intercept and pursuit are the sanity references. `run_matrix.py` runs seed and scenario matrices, `check_attack_scenarios.py` checks the geometry, `viz_tool.py` and `chart_viz.py` replay checkpoints and write reports. `main_attack_ppo_scen.py` is the earlier three-family variant in a hand-scaled 2 km arena, kept because it takes the same route chain and is covered by the same wiring check.
 
-| Folder | Content | Status |
-|---|---|---|
-| `Train_VAE_full`, `Train_nGAN_full`, `Train_Diff_Full` | Training scripts of the trace generators (VAE, cGAN / wGAN, diffusion, TrajDiffusion, U-Net) on TSGM built-in and self-built models. Scripts marked `(u)` are the usable ones. | original |
-| `Evaluation` | Notebooks that turn data into importable traces, judge the generation with the JSD matrix, plot training and create scenarios. | original |
-| `Ship_envre` | The first environment: `ppo_sb3_rl.py` (Stable-Baselines3 PPO, train and eval modes), `Ship_env.py` (rebuilt ShipAI environment with border reading, scope calculation and reward stages), `simulator.py` (ship simulation). | original, kept as is |
-| `Ship_envre_v2` | Regenerated attack-scenario pipeline (2026-09-14): Fossen-form ship dynamics with yaw damping, danger criteria (DCPA / TCPA, ship domain, CRI, COLREG encounter type), a ship-like target with automation levels, COLREG scenario families, event grading and scoring, scorecards, self-play and chart-style animations. `README_v2.md`. | remade |
-| `Ship_envre_v3` | The encounter-lifecycle definition (2026-09-14): an episode is one encounter with the phases approach, action, passing and clear; no destination point and no time limit. Steady course-holding target, live viewer and episode recorder. Imports v2 unchanged. `README_v3.md`. | remade |
-| `PPO_scenario_generate` | Rebuilt modules for the reference scripts `main_ppo.py` / `main_attack_ppo.py` (world model, PPO interface, gym shim), the collision standard, eight attack scenarios under the v3 definition, full attacker control with limits, scripted baselines, training matrices and the visualisation tool. `MASS_TESTING_ENV_REBUILD.md`. | remade |
-| `PPO_scenario_generate/data_prep` | Timestamp-correct sampling and smoothing of AIS tracks (`ais_prep.py`), the synthetic known-truth fleets and the checks of the mending plan. `README.md`. | remade |
-| `PPO_scenario_generate/review` | The external review of the pipeline (Codex, September 2026), the study-plan review and the checked mending plan for the data step. | records |
+The study design agreed after the external review (systems under test, methods compared, outcomes and statistics) is `review/STUDY_PLAN_PEER_REVIEW.md`; the review record with the open items is `review/RESEARCH_REVIEW.md`.
+
+## Layout
+
+| Path | Content |
+|---|---|
+| `general/` | The pipeline: extraction, generation and their checks. `general/README.md` says how to run each part; `general/MASS_TESTING_ENV_REBUILD.md` is the design and verification log of the environments. |
+| `general/generators/` | The trace generators and a plotting notebook (listed in `general/README.md`). |
+| `general/check_out/` | Results of the checks of the mending plan and of the environment wiring on the synthetic fleets. |
+| `review/` | Records: the external review (Codex, September 2026), the study plan, the mending plan of the data step and two probes. Paths inside these records refer to the layout at the time (`PPO_scenario_generate/` with `data_prep/`), which is now `general/`. |
+| `.aris/` | The traces of the review rounds. |
 
 ## Data
 
-The AIS data are not included; they are private. Everything in the repository runs on synthetic traces (`Ship_envre_v2/make_synthetic_data.py`, `PPO_scenario_generate/data_prep/synth_ais.py`).
-
-The original data step (`Train_VAE_full/data_csv2npy.py` and `Ship_envre/interpolation.py`) resampled each CSV by row index, so one array point stood for 13 to 218 s of real time inside one trace. It is replaced by the mended chain:
+The AIS data are private and not included. Everything in the repository runs on synthetic traces: `python check_mending_plan.py fleet` writes the synthetic fleets and `ais_prep.py prepare` turns them into windows. On the private data:
 
 ```
-cd PPO_scenario_generate/data_prep
+cd general
 python ais_prep.py legacy-check --input <folder with the CSV files>
 python ais_prep.py prepare --input <folder> --out <out folder> --pairs
+python main_attack_ppo_enc.py --trace <out folder>/windows_lonlat_train.npy --scenario mix --dcpa_band passing --control full
 ```
 
-`prepare` cleans the reports, splits the voyages into train / val / test first, removes bad fixes by a distance rule, splits at reception gaps, smooths on the real timestamps (Kalman / RTS, strength chosen inside physical bounds), resamples on an absolute 20 s grid and writes `windows_lonlat*.npy` in the old `(n, 100, 2)` format, so every existing consumer loads it, together with speed and course per point and an aggregate report that can be shared. `review/MENDING_PLAN_PART1.md` explains the checks and how to read the report. Arrays made with the old step should not be mixed with the new ones.
-
-## Running the remade parts
-
-All remade parts run on one Python (3.14 was used) with numpy, pandas, matplotlib, torch, gymnasium and tqdm; scipy is needed only to rerun the legacy comparison. Run each script from a work directory, because logs land in the current directory.
-
-**Ship_envre_v2 and v3.** `python main_attack_ppo_ship.py --task attack` (v2) and `python main_attack_ppo_v3.py` (v3) train; `evaluate_agent*.py` writes scorecards; `animate_*.py` renders episodes. With arrays from `data_prep` pass `--trace_dt 20 --smooth_sigma 0`.
-
-**PPO_scenario_generate.** `main_attack_ppo_enc.py` trains the attacker on the eight encounter scenarios (`--scenario mix --dcpa_band passing --control full`), `check_attack_scenarios.py` runs the geometry self-test and the scripted baselines, `run_matrix.py` runs seed and scenario matrices, `viz_tool.py` replays checkpoints and writes reports. `--trace <windows_lonlat.npy>` shapes the target routes with generated or recorded traces through the mended chain: every trace is checked against the target's turn rate at the standard's scale before it is used, and the target plays the checked curve back.
-
-**Checks.** `data_prep/check_mending_plan.py tests` (about 10 min) reproduces every table of the mending plan on the synthetic fleets; `data_prep/check_env_wiring.py` checks the environments against the collision standard.
+`review/MENDING_PLAN_PART1.md` explains the checks and how to read the report. Arrays made with the old row-index resampling, where one array point stood for 13 to 218 s of real time, must not be mixed with the new ones.
 
 ## Requirements
 
-The original generation scripts were written for Python 3.10 with the default TSGM requirements; the original `Ship_envre` for Python 3.7 with the packages in `requirements.txt`. The remade parts have no dependency on either.
+One Python (3.10 or newer; 3.14 was used) with the packages in `requirements.txt`: numpy, pandas, matplotlib, pillow, tqdm, gymnasium and torch; scipy only for the legacy comparison. The generators were written for Python 3.10 with the TSGM stack listed in `general/generators/requirements.txt`. Run the scripts from a work directory, because logs and `runs/` land in the current directory; the CPU is faster than a GPU for the 64-unit policy network.
 
+## Removed on 2026-09-24
+
+The repository was reduced to the methods that the extraction and the generation use. The parts below are no longer in the tree; all of them are in the history up to commit 3b9feb0.
+
+- `Ship_envre`: the first environment (Stable-Baselines3 PPO on the ShipAI hull model, Python 3.7). Its `viewer.py` was never committed, so it could not be imported, and nothing in the pipeline used it.
+- `Ship_envre_v2` and `Ship_envre_v3`: a separate build with continuous ship dynamics. Its collision standard, grading and encounter lifecycle live on in `encounter_standard.py`; its own route path was never wired to the mended data step, and the study plan dropped the transfer to it.
+- The first data step, `Train_VAE_full/data_csv2npy.py` and `Ship_envre/interpolation.py` (row-index resampling). The original resampling function is kept in `general/legacy_stage.py` for the comparison in the checks.
+- The generator attempts that the old README marked as not usable: `train_diffusion_full.py`, `Others/train_GAN_custom_full.ipynb` and `Train_wGAN/train_wavegan_full.ipynb`.
+- `Evaluation/scenario_creation.ipynb`, the random pairing of two traces that the scenario builder replaces, and `Evaluation/jsd_matrix.ipynb`, whose metric compares each trace with a distribution fitted to that same trace and cannot rank generators (`review/jsd_probe.py`).
+- The two 2024 obstacle-scene reference trainers `main_ppo.py` and `main_attack_ppo.py`; the attack trainers carry their loop.

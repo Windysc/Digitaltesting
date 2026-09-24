@@ -7,8 +7,9 @@ Run order
     <python with scipy> legacy_stage.py check_out/csv check_out/legacy.npz
     python check_mending_plan.py tests            # T0-T12, writes check_out/results.md and results.json
 
-The legacy arrays come from the original function of data_csv2npy.py, the
-environment parts call the real scenario_targets / Ship_envre_v2 code; only the
+The legacy arrays come from the original resampling function of the first data
+step (data_csv2npy.py, kept in legacy_stage.py); the environment parts call the
+real scenario_targets / attack_scenarios code; only the
 TSGM noise is reproduced from its source line (tsgm 0.1.0: sigma = variance ** 0.5,
 np.random.normal per point and per feature), because tsgm does not install here.
 
@@ -24,14 +25,8 @@ import sys
 
 import numpy as np
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-# Ship_envre_v2: next to PPO_scenario_generate in the repository, else the Desktop checkout
-V2 = next((p for p in (os.path.join(os.path.dirname(ROOT), 'Ship_envre_v2'),
-                       r'C:\Users\ASUS\Desktop\Digitaltesting-main\Digitaltesting-main\Ship_envre_v2')
-           if os.path.isdir(p)), os.path.join(os.path.dirname(ROOT), 'Ship_envre_v2'))
+HERE = os.path.dirname(os.path.abspath(__file__))     # the general folder: ais_prep.py and the environments side by side
 sys.path.insert(0, HERE)
-sys.path.insert(0, ROOT)
 import ais_prep as A            # noqa: E402
 import synth_ais as S           # noqa: E402
 
@@ -641,24 +636,14 @@ def t8(fleet):
 
 
 # ----------------------------------------------------------------------- T9
-def t9(fleet, legacy, prep):
-    say('## T9 Compatibility with the existing consumers')
+def t9(prep):
+    say('## T9 Compatibility with the consumer of the arrays (EncounterAttackEnv)')
     say('')
-    sys.path.insert(0, V2)
-    import target_ship as TS
+    say('The mended windows are written in the old (n, 100, 2) lon / lat layout.  The environment loads them '
+        'through the route chain of ais_prep.py and plays the accepted routes back.  (Until 2026-09-24 this table '
+        'also held the speed that the route model of the removed Ship_envre_v2 build read from the arrays.)')
+    say('')
     folder = os.path.join(OUT, 'prep_raw_off')
-    ll = np.load(os.path.join(folder, 'windows_lonlat.npy'))
-    sv = np.load(os.path.join(folder, 'windows_speed_course.npy'))
-    proj = lambda a: np.stack([np.radians(a[:, 0] - a[0, 0]) * 6371000.0 * math.cos(math.radians(a[0, 1])),
-                               np.radians(a[:, 1] - a[0, 1]) * 6371000.0], axis=1)          # the v2 projection
-    ratio_new = [TS.route_from_trace(proj(a), 20.0, 2.0)[1] / np.mean(s[:, 0]) for a, s in zip(ll, sv)]
-    ratio_old = []
-    for name, tr in fleet.items():
-        t = tr['reports']['raw']['t_true']
-        ratio_old.append(TS.route_from_trace(proj(legacy['raw/' + name]), 20.0, 2.0)[1]
-                         / np.mean(S.truth_at(tr, np.linspace(t[0], t[-1], 200))[1]))
-    table(['array', 'v2 route_from_trace speed (trace_dt = 20 s) over the true mean speed, P50 / P95 / max'],
-          [['legacy (row-index resampling)', q3(ratio_old, '%.2f')], ['mended windows', q3(ratio_new, '%.3f')]])
     import env_moving_obj as E
     from attack_scenarios import EncounterAttackEnv, hold_action
     env = EncounterAttackEnv(E.ownship(0, 0, 0, 0, 0, 0), scenario='mix', scale='maritime',
@@ -669,10 +654,12 @@ def t9(fleet, legacy, prep):
         _, _, done, _ = env.step(hold_action(env))
         n += 1
     ev = env.evaluation()
-    say('EncounterAttackEnv(trace = mended windows, scale = maritime) runs: %d decisions, outcome %s, data_shaped = %s.' % (
-        n, ev.get('outcome'), ev.get('data_shaped')))
+    info = getattr(env, 'trace_info', {}) or {}
+    say('EncounterAttackEnv(trace = mended windows, scale = maritime) runs: %d decisions, outcome %s, data_shaped = %s, '
+        'routes accepted %s of %s.' % (n, ev.get('outcome'), ev.get('data_shaped'), info.get('n_accepted', '?'), info.get('n_traces', '?')))
     say('')
-    RES['T9'] = dict(old=q3(ratio_old, '%.2f'), new=q3(ratio_new, '%.3f'))
+    RES['T9'] = dict(decisions=n, outcome=ev.get('outcome'), data_shaped=ev.get('data_shaped'),
+                     routes_accepted=info.get('n_accepted'), routes_total=info.get('n_traces'))
 
 
 # ---------------------------------------------------------------------- T10
@@ -855,7 +842,7 @@ def main():
     t6()
     t7(fleet, prep)
     t8(fleet)
-    t9(fleet, legacy, prep)
+    t9(prep)
     t10(prep)
     t11()
     t12()

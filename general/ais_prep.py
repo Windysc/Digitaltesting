@@ -2,8 +2,9 @@
 ais_prep.py -- timestamp-correct sampling and smoothing of AIS tracks
 (reference implementation of the mending plan for part 1, data extraction).
 
-It stands in for Train_VAE_full/data_csv2npy.py (spline over the row index,
-noise in degrees) and for the point-count smoothing in the environments.
+It replaces the first data step of the repository (data_csv2npy.py: spline over
+the row index, noise in degrees; removed on 2026-09-24, its resampling function
+is kept in legacy_stage.py) and the point-count smoothing in the environments.
 Pure numpy; pandas is used only to read CSV files.
 
 Chain A, generator arrays

@@ -16,9 +16,9 @@ presettings decided 2026-09-15:
   course difference, meeting time, closest-point-of-approach offset; the
   route is the straight chord start -> meeting point, extended past it, or
   shaped by a generated AIS trace sample when `trace` (an (n, T, 2) lon/lat
-  .npy, e.g. data_prep output windows_lonlat.npy) is given.  Since 2026-09-24
+  .npy, e.g. the windows_lonlat.npy that ais_prep.py writes) is given.  Since 2026-09-24
   (mending plan part 1, step 4) a trace becomes a route through
-  data_prep/ais_prep.py: C2 spline through the samples, tabulated every 5 m
+  ais_prep.py: C2 spline through the samples, tabulated every 5 m
   with heading and curvature, scaled by `trace_scale`, checked against the
   target's turn rate (fit_route_to_limit; traces that cannot meet it within
   50 m are left out), placed along its own start tangent, and played back
@@ -48,10 +48,7 @@ import numpy as np
 import env_moving_obj as E
 from env_moving_attack import MassTestingEnv as _AttackEnv
 
-_DATA_PREP = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data_prep')
-if _DATA_PREP not in sys.path:
-    sys.path.insert(0, _DATA_PREP)
-import ais_prep                                  # noqa: E402  (route chain of the mending plan, part 1)
+import ais_prep                                  # route chain of the mending plan, part 1 (same folder)
 
 EARTH_R = 6371000.0
 ROUTE_MAX_DEV = 50.0        # m at full size: largest move fit_route_to_limit may make to meet the yaw limit
@@ -112,7 +109,7 @@ def route_length(route):
 
 def smooth_path(xy, window=5):
     """LEGACY (until 2026-09-24): box smoothing over `window` points.  No longer used by the environments;
-    kept so that data_prep/check_mending_plan.py can still run the old chain for comparison."""
+    kept so that check_mending_plan.py can still run the old chain for comparison."""
     xy = np.asarray(xy, float)
     if len(xy) < window + 2:
         return xy
@@ -124,7 +121,7 @@ def smooth_path(xy, window=5):
 
 def load_trace_shapes(path):
     """(n, T, 2) lon/lat .npy -> list of xy traces in metres at full size, one tangent plane per trace
-    (data_prep/ais_prep.ll_to_xy at the trace's first point), no smoothing."""
+    (ais_prep.ll_to_xy at the trace's first point), no smoothing."""
     arr = np.load(path)
     if arr.ndim == 2:
         arr = arr[None]

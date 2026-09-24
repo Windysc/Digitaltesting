@@ -1,9 +1,9 @@
 """
-env_moving_attack.py -- MassTestingEnv for Desktop/main_attack_ppo.py (attack task).
+env_moving_attack.py -- MassTestingEnv with the attack task (base of ScenarioAttackEnv and EncounterAttackEnv).
 
 Rebuilt 2026-09-15; shares the world model of env_moving_obj.py.  The own
 ship is the attacker.  Targets are the ships in `ts_list`, or, when that list
-is empty (as in main_attack_ppo.py), every moving obstacle.  Static obstacles
+is empty, every moving obstacle.  Static obstacles
 stay hazards.
 
 Success (flag 1): the own ship comes within `attack_range` of a target hull

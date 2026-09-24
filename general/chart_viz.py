@@ -1,7 +1,7 @@
 """
-chart_viz.py -- chart-style episode renderer for the PPO_scenario_generate
-environments (layout of Ship_envre_v2/animate_scenes.py, metres; renewed
-2026-09-15 for the collision standard and the encounter lifecycle).
+chart_viz.py -- chart-style episode renderer for the scenario environments of
+this folder (layout of the animate_scenes.py of the earlier Ship_envre_v2 build,
+metres; renewed 2026-09-15 for the collision standard and the encounter lifecycle).
 
 Single-episode GIF:
   header     scenario, rule and meaning; initial range / DCPA / TCPA; the
