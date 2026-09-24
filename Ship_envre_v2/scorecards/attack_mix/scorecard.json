@@ -1,0 +1,358 @@
+{
+  "ability": {
+    "label": "ppo_attack_mix_best.pth",
+    "task": "attack",
+    "n_episodes": 72,
+    "success_rate": 0.20833333333333334,
+    "mean_event_score": 45.397777777777776,
+    "robustness_min_success_over_automation": 0.1111111111111111,
+    "hardest_scenario": "head_on",
+    "hardest_automation": "none",
+    "effort_rudder_change_per_step": 0.06264968785120069,
+    "grade_hist": {
+      "safe_passage": 27,
+      "close_quarters": 30,
+      "domain_infringement": 15,
+      "collision": 0
+    },
+    "efficiency_vs_baseline": 0.8203571164875715
+  },
+  "cells": {
+    "head_on|none": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 33.37333333333333,
+      "grade_hist": {
+        "safe_passage": 2,
+        "close_quarters": 1,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.06800766283524905,
+      "mean_steps": 124.0
+    },
+    "crossing_starboard|none": {
+      "n": 3,
+      "success_rate": 0.3333333333333333,
+      "mean_score": 55.123333333333335,
+      "grade_hist": {
+        "safe_passage": 0,
+        "close_quarters": 2,
+        "domain_infringement": 1,
+        "collision": 0
+      },
+      "effort": 0.07265769100875484,
+      "mean_steps": 95.0,
+      "mean_steps_success": 85.0,
+      "efficiency": 1.2627450980392156
+    },
+    "crossing_port|none": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 30.536666666666665,
+      "grade_hist": {
+        "safe_passage": 2,
+        "close_quarters": 1,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.062303761336955026,
+      "mean_steps": 98.66666666666667
+    },
+    "overtaking|none": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 46.49000000000001,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 2,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.16733832782676406,
+      "mean_steps": 73.0
+    },
+    "overtaken|none": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 43.27333333333334,
+      "grade_hist": {
+        "safe_passage": 2,
+        "close_quarters": 1,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.014183964183964184,
+      "mean_steps": 59.333333333333336
+    },
+    "data|none": {
+      "n": 3,
+      "success_rate": 0.3333333333333333,
+      "mean_score": 43.876666666666665,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 1,
+        "domain_infringement": 1,
+        "collision": 0
+      },
+      "effort": 0.020083139385827353,
+      "mean_steps": 100.0,
+      "mean_steps_success": 69.0,
+      "efficiency": 0.855072463768116
+    },
+    "head_on|manual": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 33.37333333333333,
+      "grade_hist": {
+        "safe_passage": 2,
+        "close_quarters": 1,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.06800766283524905,
+      "mean_steps": 124.0
+    },
+    "crossing_starboard|manual": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 50.93333333333334,
+      "grade_hist": {
+        "safe_passage": 0,
+        "close_quarters": 3,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.07426856638200645,
+      "mean_steps": 100.66666666666667
+    },
+    "crossing_port|manual": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 30.536666666666665,
+      "grade_hist": {
+        "safe_passage": 2,
+        "close_quarters": 1,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.062303761336955026,
+      "mean_steps": 98.66666666666667
+    },
+    "overtaking|manual": {
+      "n": 3,
+      "success_rate": 0.3333333333333333,
+      "mean_score": 51.85333333333333,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 1,
+        "domain_infringement": 1,
+        "collision": 0
+      },
+      "effort": 0.1615701194269767,
+      "mean_steps": 90.0,
+      "mean_steps_success": 166.0,
+      "efficiency": 0.39759036144578314
+    },
+    "overtaken|manual": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 43.27333333333334,
+      "grade_hist": {
+        "safe_passage": 2,
+        "close_quarters": 1,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.014183964183964184,
+      "mean_steps": 59.333333333333336
+    },
+    "data|manual": {
+      "n": 3,
+      "success_rate": 0.3333333333333333,
+      "mean_score": 44.41,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 1,
+        "domain_infringement": 1,
+        "collision": 0
+      },
+      "effort": 0.019870010656074577,
+      "mean_steps": 100.33333333333333,
+      "mean_steps_success": 70.0,
+      "efficiency": 0.8571428571428571
+    },
+    "head_on|assisted": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 46.666666666666664,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 2,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.06776384106684157,
+      "mean_steps": 127.33333333333333
+    },
+    "crossing_starboard|assisted": {
+      "n": 3,
+      "success_rate": 0.3333333333333333,
+      "mean_score": 55.23,
+      "grade_hist": {
+        "safe_passage": 0,
+        "close_quarters": 2,
+        "domain_infringement": 1,
+        "collision": 0
+      },
+      "effort": 0.07420936402670583,
+      "mean_steps": 119.66666666666667,
+      "mean_steps_success": 168.0,
+      "efficiency": 0.6646825396825398
+    },
+    "crossing_port|assisted": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 47.11333333333334,
+      "grade_hist": {
+        "safe_passage": 0,
+        "close_quarters": 3,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.04271044583936907,
+      "mean_steps": 96.0
+    },
+    "overtaking|assisted": {
+      "n": 3,
+      "success_rate": 0.6666666666666666,
+      "mean_score": 56.24000000000001,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 0,
+        "domain_infringement": 2,
+        "collision": 0
+      },
+      "effort": 0.1021287632745644,
+      "mean_steps": 88.66666666666667,
+      "mean_steps_success": 102.0,
+      "efficiency": 0.6486174005202814
+    },
+    "overtaken|assisted": {
+      "n": 3,
+      "success_rate": 0.3333333333333333,
+      "mean_score": 48.343333333333334,
+      "grade_hist": {
+        "safe_passage": 2,
+        "close_quarters": 0,
+        "domain_infringement": 1,
+        "collision": 0
+      },
+      "effort": 0.013980712151443858,
+      "mean_steps": 53.0,
+      "mean_steps_success": 42.0,
+      "efficiency": 0.9047619047619048
+    },
+    "data|assisted": {
+      "n": 3,
+      "success_rate": 0.6666666666666666,
+      "mean_score": 50.53333333333333,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 0,
+        "domain_infringement": 2,
+        "collision": 0
+      },
+      "effort": 0.0326774031464863,
+      "mean_steps": 82.0,
+      "mean_steps_success": 83.5,
+      "efficiency": 0.7442067736185383
+    },
+    "head_on|autonomous": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 45.86333333333332,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 2,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.0809423646562047,
+      "mean_steps": 139.33333333333334
+    },
+    "crossing_starboard|autonomous": {
+      "n": 3,
+      "success_rate": 0.3333333333333333,
+      "mean_score": 52.60666666666666,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 1,
+        "domain_infringement": 1,
+        "collision": 0
+      },
+      "effort": 0.06683060857321653,
+      "mean_steps": 103.33333333333333,
+      "mean_steps_success": 86.0,
+      "efficiency": 1.0310077519379846
+    },
+    "crossing_port|autonomous": {
+      "n": 3,
+      "success_rate": 0.0,
+      "mean_score": 47.26333333333334,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 2,
+        "domain_infringement": 0,
+        "collision": 0
+      },
+      "effort": 0.032422079678177236,
+      "mean_steps": 100.0
+    },
+    "overtaking|autonomous": {
+      "n": 3,
+      "success_rate": 0.6666666666666666,
+      "mean_score": 59.93000000000001,
+      "grade_hist": {
+        "safe_passage": 0,
+        "close_quarters": 1,
+        "domain_infringement": 2,
+        "collision": 0
+      },
+      "effort": 0.14355071663814833,
+      "mean_steps": 79.33333333333333,
+      "mean_steps_success": 64.5,
+      "efficiency": 0.8539961482908041
+    },
+    "overtaken|autonomous": {
+      "n": 3,
+      "success_rate": 0.3333333333333333,
+      "mean_score": 28.296666666666667,
+      "grade_hist": {
+        "safe_passage": 2,
+        "close_quarters": 0,
+        "domain_infringement": 1,
+        "collision": 0
+      },
+      "effort": 0.018511099240265907,
+      "mean_steps": 57.666666666666664,
+      "mean_steps_success": 53.0,
+      "efficiency": 0.7735849056603774
+    },
+    "data|autonomous": {
+      "n": 3,
+      "success_rate": 0.3333333333333333,
+      "mean_score": 44.406666666666666,
+      "grade_hist": {
+        "safe_passage": 1,
+        "close_quarters": 1,
+        "domain_infringement": 1,
+        "collision": 0
+      },
+      "effort": 0.02308647873865265,
+      "mean_steps": 105.66666666666667,
+      "mean_steps_success": 76.0,
+      "efficiency": 0.8508771929824562
+    }
+  }
+}
