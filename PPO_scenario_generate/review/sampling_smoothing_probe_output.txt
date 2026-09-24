@@ -1,0 +1,34 @@
+AIS-like input: 494 reports over 60 min, spacing 2-10 s + gaps 120-360 s
+
+S1 cubic spline over row index -> 100 points
+  real time between consecutive points: 17.5 - 247.2 s (downstream assumes a constant 36.4 s)
+  timing error of a point if read as uniform: median 53 s, max 302 s
+  implied speed from uniform-time reading: 2.04 - 36.65 m/s (truth 4.00 / 6.00)
+  position error vs truth at the point's true time: median 5.2 m, max 100.6 m
+  [alternative] linear on timestamps at 20 s + window 3: position error median 3.4 m, max 34.8 m, speed 3.86-6.13 m/s (p5-p95)
+
+S2 GaussianNoise variance 0.0001 (sigma 0.01 deg)
+  displacement per point: median 1039 m (lat 1112 m, lon 596 m)
+  implied speed: median 42.8 m/s, max 114.6 m/s
+  after box 5 (PPO_scenario_generate): residual error median 442 m; path length x2.04 -> v2 route_from_trace speed x2.04; max turn rate 4.69 deg/s
+    S6 initial course (point 3 - point 0) error: -85.1 deg
+  after Gaussian 2 (v2/v3): residual error median 351 m; path length x1.30 -> v2 route_from_trace speed x1.30; max turn rate 4.84 deg/s
+    S6 initial course (point 3 - point 0) error: -74.0 deg
+
+S2 GaussianNoise variance 1e-08 (sigma 0.0001 deg)
+  displacement per point: median 9 m (lat 11 m, lon 6 m)
+  implied speed: median 4.3 m/s, max 37.1 m/s
+  after box 5 (PPO_scenario_generate): residual error median 19 m; path length x0.99 -> v2 route_from_trace speed x0.99; max turn rate 0.28 deg/s
+    S6 initial course (point 3 - point 0) error: -2.0 deg
+  after Gaussian 2 (v2/v3): residual error median 27 m; path length x0.98 -> v2 route_from_trace speed x0.98; max turn rate 0.24 deg/s
+    S6 initial course (point 3 - point 0) error: -1.8 deg
+
+S4/S5 smoothing alone on the clean 100-point trace (turn 90 deg at 0.3 deg/s)
+  box 5: max offset 475.5 m (end points 117.0/73.9 m), length x0.9868, turn rate max 0.298 vs 0.390 deg/s
+
+S3 Ship_envre/interpolation.py assumes 9 s between points
+  the 100-point S1 output spans 3601 s -> real spacing 36.4 s; read as 9 s the voyage is compressed x4.0 in time and speeds are inflated x4.0
+
+largest box-5 shift at point 19: neighbouring segment lengths [190, 144, 139, 1333, 133, 209] m (median segment 152 m)
+  top-5 shifted points: [18, 19, 20, 68, 70] shifts [227, 395, 461, 466, 475]
+  [alternative] resample by arc length first, then box 5: max shift 91.2 m, interior max 23.0 m

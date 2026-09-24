@@ -1,0 +1,398 @@
+{
+ "settings": {
+  "grid_dt": 20.0,
+  "window_points": 100,
+  "stride": 50,
+  "gap_s": "auto",
+  "gap_floor": 60.0,
+  "gap_factor": 2.0,
+  "gap_cap": 120.0,
+  "sigma_p": 10.0,
+  "sigma_v": 0.2,
+  "q": "auto",
+  "q_bounds": [
+   0.001,
+   0.01
+  ],
+  "q_grid": [
+   0.0003,
+   0.001,
+   0.003,
+   0.01,
+   0.03,
+   0.1
+  ],
+  "q_tolerance": 0.02,
+  "cog_source": "unknown",
+  "max_cog_lag": 5.0,
+  "v_cap": 20.0,
+  "run_fixes": 12,
+  "run_s": 180.0,
+  "gate_floor": 40.0,
+  "min_speed": 0.5,
+  "route_table_ds": 5.0,
+  "route_end_fit": 300.0,
+  "yaw_limit": 0.5,
+  "route_speed": 6.0,
+  "split": [
+   0.7,
+   0.15,
+   0.15
+  ],
+  "outlier_rules": true,
+  "seed": 0,
+  "sog_unit_vote": "training voyages",
+  "sog_unit_majority": "kn",
+  "q_segments_source": "training voyages",
+  "q_used": 0.003,
+  "aid_forced": false
+ },
+ "counts": {
+  "files": 24,
+  "voyages": 24,
+  "raw_reports": 9407,
+  "unusable_rows": 0,
+  "non_monotonic_rows": 0,
+  "duplicate_timestamps": 94,
+  "stale_repeats": 0,
+  "sog_or_cog_not_available": 714,
+  "removed_by_distance_rule": 245,
+  "removed_by_residual_pass": 1,
+  "cuts_at_lasting_jumps": 4,
+  "segments": 65,
+  "segments_too_short": 7,
+  "windows": 21,
+  "windows_too_slow": 0
+ },
+ "report_intervals": {
+  "median_s": 9.0,
+  "p95_s": 20.0,
+  "histogram_edges_s": [
+   "0",
+   "3",
+   "6",
+   "12",
+   "30",
+   "60",
+   "120",
+   "600",
+   "inf"
+  ],
+  "histogram_share": [
+   0.0688,
+   0.1684,
+   0.6064,
+   0.1393,
+   0.0141,
+   0.0001,
+   0.0026,
+   0.0003
+  ],
+  "gap_threshold_per_voyage_s": [
+   60.0,
+   60.0,
+   60.0
+  ],
+  "voyages_too_sparse_for_the_grid": 0
+ },
+ "windows": {
+  "longest_interval_minus_threshold_s": -1.0,
+  "consistent": true,
+  "median_report_interval_inside_a_window_s": [
+   7.0,
+   10.0,
+   10.0
+  ],
+  "share_with_median_interval_above_two_grid_steps": 0.0
+ },
+ "smoothing": {
+  "q_used": 0.003,
+  "choice": {
+   "rule": "holdout, ties to the smaller q",
+   "q_holdout": 0.003,
+   "q_cog": 0.003,
+   "cog_independent": true,
+   "cog_lag_s": 0.0,
+   "cog_usable": false,
+   "cog_source": "unknown",
+   "bounds": [
+    0.001,
+    0.01
+   ],
+   "bound_active": false,
+   "per_voyage_holdout_minimum": {
+    "0.0003": 1,
+    "0.001": 1,
+    "0.003": 5,
+    "0.01": 7,
+    "0.03": 1,
+    "0.1": 2
+   },
+   "cog_vs_raw_position_course_rms_deg": 3.4776240446660136,
+   "cog_raw_correlation_on_straights": -0.062169954759721396,
+   "course_vs_cog_rms_by_lag_deg": {
+    "0": 0.836,
+    "2": 0.89,
+    "5": 1.084,
+    "10": 1.566,
+    "15": 2.128,
+    "20": 2.718,
+    "30": 3.922
+   },
+   "course_vs_cog_by_speed": {
+    "below 3 m/s, straight": {
+     "n": 66,
+     "median_abs": 0.7,
+     "rms": 1.083,
+     "p95_abs": 2.212,
+     "mean": 0.212
+    },
+    "below 3 m/s, turning": {
+     "n": 38,
+     "median_abs": 0.681,
+     "rms": 0.903,
+     "p95_abs": 1.904,
+     "mean": 0.119
+    },
+    "3 to 6 m/s, straight": {
+     "n": 1639,
+     "median_abs": 0.507,
+     "rms": 0.779,
+     "p95_abs": 1.555,
+     "mean": -0.057
+    },
+    "3 to 6 m/s, turning": {
+     "n": 348,
+     "median_abs": 0.641,
+     "rms": 0.973,
+     "p95_abs": 1.753,
+     "mean": 0.012
+    },
+    "above 6 m/s, straight": {
+     "n": 3009,
+     "median_abs": 0.46,
+     "rms": 0.684,
+     "p95_abs": 1.336,
+     "mean": -0.018
+    },
+    "above 6 m/s, turning": {
+     "n": 821,
+     "median_abs": 0.68,
+     "rms": 1.272,
+     "p95_abs": 2.086,
+     "mean": 0.069
+    }
+   }
+  },
+  "estimated_on": "training voyages",
+  "table": [
+   {
+    "q": 0.0003,
+    "single_rms": 7.042,
+    "single_p95": 14.17,
+    "block_rms": 8.07,
+    "block_p95": 16.829,
+    "n_single": 601,
+    "n_block": 746,
+    "course_vs_cog_rms_deg": 1.232,
+    "speed_vs_sog_rms_ms": 0.091
+   },
+   {
+    "q": 0.001,
+    "single_rms": 5.556,
+    "single_p95": 9.917,
+    "block_rms": 6.077,
+    "block_p95": 10.982,
+    "n_single": 601,
+    "n_block": 746,
+    "course_vs_cog_rms_deg": 0.953,
+    "speed_vs_sog_rms_ms": 0.079
+   },
+   {
+    "q": 0.003,
+    "single_rms": 5.099,
+    "single_p95": 9.02,
+    "block_rms": 5.56,
+    "block_p95": 9.698,
+    "n_single": 601,
+    "n_block": 746,
+    "course_vs_cog_rms_deg": 0.836,
+    "speed_vs_sog_rms_ms": 0.078
+   },
+   {
+    "q": 0.01,
+    "single_rms": 4.978,
+    "single_p95": 8.703,
+    "block_rms": 5.503,
+    "block_p95": 9.662,
+    "n_single": 601,
+    "n_block": 746,
+    "course_vs_cog_rms_deg": 0.829,
+    "speed_vs_sog_rms_ms": 0.086
+   },
+   {
+    "q": 0.03,
+    "single_rms": 5.012,
+    "single_p95": 8.568,
+    "block_rms": 5.622,
+    "block_p95": 10.145,
+    "n_single": 601,
+    "n_block": 746,
+    "course_vs_cog_rms_deg": 0.9,
+    "speed_vs_sog_rms_ms": 0.104
+   },
+   {
+    "q": 0.1,
+    "single_rms": 5.147,
+    "single_p95": 8.885,
+    "block_rms": 5.921,
+    "block_p95": 10.579,
+    "n_single": 601,
+    "n_block": 746,
+    "course_vs_cog_rms_deg": 1.057,
+    "speed_vs_sog_rms_ms": 0.14
+   }
+  ]
+ },
+ "sog_cog": {
+  "sog_units_detected": {
+   "kn": 24,
+   "ms": 0,
+   "None": 0
+  },
+  "sog_unit_vote": "training voyages",
+  "sog_unit_majority": "kn",
+  "velocity_aiding": false,
+  "aiding_forced": false,
+  "position_speed_over_sog_p50_p95_max": [
+   0.514,
+   0.515,
+   0.515
+  ],
+  "speed_minus_sog_ms": {
+   "n": 8465,
+   "median_abs": 0.05,
+   "rms": 0.078,
+   "p95_abs": 0.146,
+   "mean": -0.001
+  },
+  "course_minus_cog_deg": {
+   "n": 8464,
+   "median_abs": 0.5,
+   "rms": 0.819,
+   "p95_abs": 1.537,
+   "mean": -0.002
+  }
+ },
+ "residuals_m": {
+  "along_interior": {
+   "n": 8215,
+   "median_abs": 2.421,
+   "rms": 3.653,
+   "p95_abs": 7.221,
+   "mean": 0.001
+  },
+  "cross_interior": {
+   "n": 8215,
+   "median_abs": 1.505,
+   "rms": 2.193,
+   "p95_abs": 4.272,
+   "mean": 0.0
+  },
+  "along_ends": {
+   "n": 835,
+   "median_abs": 2.205,
+   "rms": 3.393,
+   "p95_abs": 6.582,
+   "mean": -0.014
+  },
+  "cross_ends": {
+   "n": 835,
+   "median_abs": 1.387,
+   "rms": 2.222,
+   "p95_abs": 4.187,
+   "mean": 0.045
+  },
+  "lag1_autocorr_along": -0.119,
+  "lag1_autocorr_cross": -0.034,
+  "innovation_mean_along": 0.823,
+  "innovation_mean_cross": 0.023
+ },
+ "grid": {
+  "points": 4015,
+  "model_position_sd_p50_m": 3.98,
+  "model_position_sd_p95_m": 4.91,
+  "share_without_a_report_within_one_step": 0.0012
+ },
+ "routes": {
+  "n": 21,
+  "p95_distance_raw_fix_to_route_m": [
+   4.256,
+   4.779,
+   4.903
+  ],
+  "largest_distance_raw_fix_to_route_m": [
+   6.629,
+   9.452,
+   9.48
+  ],
+  "p95_distance_route_to_raw_polyline_m": [
+   3.393,
+   4.058,
+   4.384
+  ],
+  "length_route_over_raw_polyline": [
+   1.003,
+   1.008,
+   1.035
+  ],
+  "total_turning_deg": [
+   43.991,
+   113.51,
+   156.077
+  ],
+  "max_curvature_of_the_played_curve_1_per_km": [
+   0.582,
+   1.188,
+   1.618
+  ],
+  "playback_speed_ms": 6.0,
+  "playback_max_yaw_deg_s": [
+   0.2,
+   0.408,
+   0.556
+  ],
+  "yaw_limit_deg_s": 0.5,
+  "share_over_yaw_limit": 0.048,
+  "share_usable_after_spatial_smoothing": 1.0,
+  "start_tangent_against_300m_fit_deg": [
+   0.125,
+   0.522,
+   1.116
+  ],
+  "chord_deviation_m": [
+   228.075,
+   3683.947,
+   4596.287
+  ],
+  "share_straight_within_50m": 0.476
+ },
+ "split": {
+  "grouped_by": "vessel id",
+  "windows": {
+   "train": 15,
+   "test": 1,
+   "val": 5
+  },
+  "groups": {
+   "train": 17,
+   "test": 3,
+   "val": 4
+  },
+  "overlap_between_splits": false
+ },
+ "area": {
+  "largest_distance_from_a_voyage_origin_km": 36.8,
+  "tangent_plane_error_m": 0.205
+ }
+}

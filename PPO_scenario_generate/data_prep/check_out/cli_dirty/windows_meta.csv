@@ -1,0 +1,22 @@
+window,voyage,segment,grid_index,split,median_report_interval_s,max_report_interval_s,group
+0,1,4,0,test,10.0,59.0,vessel 219000002
+1,2,5,0,train,7.0,40.0,vessel 219000003
+2,4,11,0,train,7.0,30.0,vessel 219000005
+3,4,11,50,train,10.0,32.0,vessel 219000005
+4,4,11,100,train,10.0,41.0,vessel 219000005
+5,5,12,0,val,10.0,50.0,vessel 219000006
+6,6,16,0,train,10.0,40.0,vessel 219000007
+7,6,16,50,train,4.0,31.0,vessel 219000007
+8,7,17,0,val,10.0,41.0,vessel 219000008
+9,10,24,0,train,6.0,24.0,vessel 219000011
+10,10,24,50,train,6.0,24.0,vessel 219000011
+11,11,26,0,train,6.0,59.0,vessel 219000012
+12,11,26,50,train,6.0,25.0,vessel 219000012
+13,14,35,0,val,6.0,19.0,vessel 219000015
+14,17,48,0,val,6.0,23.0,vessel 219000018
+15,17,48,50,val,6.0,24.0,vessel 219000018
+16,18,50,0,train,10.0,39.0,vessel 219000019
+17,18,50,50,train,10.0,31.0,vessel 219000019
+18,18,50,100,train,10.0,31.0,vessel 219000019
+19,19,52,0,train,10.0,30.0,vessel 219000020
+20,20,54,0,train,6.0,24.0,vessel 219000021
