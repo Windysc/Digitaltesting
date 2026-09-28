@@ -2,7 +2,7 @@
 
 2026-09-21. Owner's scope: the real AIS data exist but are private, and only the sampling and smoothing code is reviewed.
 
-**Status.** The first draft (2026-09-18) was reviewed by Codex gpt-5.6-sol at high effort; the trace is in `.aris/traces/research-review/2026-09-21_run03/round1.md`. The reviewer confirmed the central defect: time has been removed from the data. It also found errors in the draft's evidence and in several of its parameter values. This version takes those corrections on board.
+**Status.** The first draft (2026-09-18) was reviewed by Codex gpt-5.6-sol at high effort; the trace was in `.aris/traces/research-review/2026-09-21_run03/round1.md` (removed from the repository on 2026-09-24). The reviewer confirmed the central defect: time has been removed from the data. It also found errors in the draft's evidence and in several of its parameter values. This version takes those corrections on board.
 
 **Checked on 2026-09-21.** The chains below were built and tested against synthetic voyages with a known truth, and the test itself was reviewed externally. Seven items changed (order of the split, gap rule, outlier rule, choice of the smoothing strength, use of COG, route construction, yaw limit and scale). The result is in `MENDING_PLAN_PART1.md`. Where the two documents differ, that one holds.
 
