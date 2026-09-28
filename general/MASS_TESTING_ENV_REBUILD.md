@@ -443,4 +443,5 @@ all trained without a trace, so they are unaffected.  `main_attack_ppo_scen.py -
 pursuit under a yaw-rate limit and keep `route_from_trace`.  With `data_prep` arrays pass `--trace_dt 20 --smooth_sigma 0`
 (the point-count smoothing stays the CLI default for the legacy arrays); the data scenario then takes the smoother's median
 speed of the window when `windows_speed_course.npy` lies next to `windows_lonlat.npy`; v3 `straighten_tol` defaults to
-50 m and is measured over the whole route before the extension.  Review record: `../.aris/traces/research-review/2026-09-21_run03/round4.md`.
+50 m and is measured over the whole route before the extension.  Review record: round 4 in `../review/RESEARCH_REVIEW.md` (its trace file,
+`.aris/traces/research-review/2026-09-21_run03/round4.md`, was removed from the repository on 2026-09-24).

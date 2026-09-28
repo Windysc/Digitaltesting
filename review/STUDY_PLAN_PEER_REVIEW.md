@@ -2,7 +2,7 @@
 
 Date: 2026-09-21.
 
-The executor's first plan (2026-09-18) was reviewed by Codex gpt-5.6-sol at high effort. The thread is `01a0c314-85c9-7a30-918b-db863338b2fd` and the trace is `.aris/traces/research-review/2026-09-21_run03/round2.md`. This version keeps what the reviewer confirmed, drops what it called overstated, and uses its smaller package.
+The executor's first plan (2026-09-18) was reviewed by Codex gpt-5.6-sol at high effort. The thread is `01a0c314-85c9-7a30-918b-db863338b2fd` and the trace was `.aris/traces/research-review/2026-09-21_run03/round2.md` (removed from the repository on 2026-09-24). This version keeps what the reviewer confirmed, drops what it called overstated, and uses its smaller package.
 
 ## 1. Verdict on the current study
 

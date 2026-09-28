@@ -13,7 +13,7 @@ Updated 2026-09-21. This page replaces the executor-only draft of 2026-09-18.
 | 03 r3 | 2026-09-21 | same thread | Check of the mending plan for part 1 (reference implementation + tests) | Done: one real bug and several weak points found, all fixed | `.aris/traces/research-review/2026-09-21_run03/round3.md` |
 | 03 r4 | 2026-09-21 | same thread | Closing round on the fixes | NOT RUN (usage limit, resets 15:28); brief ready in `review/RESEARCH_REVIEW_ROUND_4.md` | `.aris/traces/research-review/2026-09-21_run03/round4.md` |
 
-Codex thread: `01a0c314-85c9-7a30-918b-db863338b2fd`.
+Codex thread: `01a0c314-85c9-7a30-918b-db863338b2fd`. The trace files named in the Trace column (under `.aris/traces/research-review/`) were removed from the repository on 2026-09-24; the column keeps their names as the record of the rounds.
 
 ## What was agreed
 
@@ -61,7 +61,7 @@ The external rounds did not re-check this. Treat it as executor evidence.
 - Old chain: one array point stands for 13 to 218 s, speeds read from the array are 0.34 to 1.60 of the truth. Mended: 20 s per point, speeds within 2 %, position error 3.6 / 7.7 / 12.7 m.
 - Seven plan items changed: split before any estimate, gap rule per voyage, distance-form outlier rule with runs and cuts, bounded choice of the smoothing strength, COG as an opt-in with three tests, route as a C2 spline with a table, yaw limit and scale from the scenario standard.
 - Round 3 found a real bug (the route acceptance read knot curvature, the played curve peaked up to 3 times higher) and leakage, guard and privacy weaknesses; all fixed and re-tested. One reviewer proposal, long hidden blocks for tuning, was tested and rejected with evidence.
-- Round 4 (closing) ran on 2026-09-24 in a new gpt-5.6-sol session at high effort (the old thread had expired): round-3 fixes confirmed, long-block evidence accepted, `prepare` and `main_attack_ppo_enc.py --trace` cleared; two pre-split leaks in `prepare`, a one-sided displacement test, a missing `--trace_scale` and the v2 / v3 route path were found and fixed or documented the same day (`.aris/traces/research-review/2026-09-21_run03/round4.md`).
+- Round 4 (closing) ran on 2026-09-24 in a new gpt-5.6-sol session at high effort (the old thread had expired): round-3 fixes confirmed, long-block evidence accepted, `prepare` and `main_attack_ppo_enc.py --trace` cleared; two pre-split leaks in `prepare`, a one-sided displacement test, a missing `--trace_scale` and the v2 / v3 route path were found and fixed or documented the same day (trace `.aris/traces/research-review/2026-09-21_run03/round4.md`, removed from the repository on 2026-09-24).
 - **Deliverable:** `review/MENDING_PLAN_PART1.md`.
 
 ## Prioritised TODO

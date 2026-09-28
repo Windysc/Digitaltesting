@@ -17,8 +17,7 @@ The study design agreed after the external review (systems under test, methods c
 | `general/` | The pipeline: extraction, generation and their checks. `general/README.md` says how to run each part; `general/MASS_TESTING_ENV_REBUILD.md` is the design and verification log of the environments. |
 | `general/generators/` | The trace generators and a plotting notebook (listed in `general/README.md`). |
 | `general/check_out/` | Results of the checks of the mending plan and of the environment wiring on the synthetic fleets. |
-| `review/` | Records: the external review (Codex, September 2026), the study plan, the mending plan of the data step and two probes. Paths inside these records refer to the layout at the time (`PPO_scenario_generate/` with `data_prep/`), which is now `general/`. |
-| `.aris/` | The traces of the review rounds. |
+| `review/` | Records: the external review (Codex, September 2026), the study plan, the mending plan of the data step and two probes. Paths inside these records refer to the layout at the time (`PPO_scenario_generate/` with `data_prep/`), which is now `general/`; the trace files of the review rounds they cite (`.aris/traces/research-review/`) were removed from the repository on 2026-09-24. |
 
 ## Data
 
