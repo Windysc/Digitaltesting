@@ -72,6 +72,14 @@ python study_compare.py envelope --out runs/study/envelope   # scripted attacker
 
 Jobs whose output exists are skipped, so a stopped batch resumes. The attacker's top speed is 6 m/s in the study (`--v_max`, the target's cruise speed); results and their reading are in `review/STUDY_RUNS_2026-10-08.md`.
 
+**Event marking (study plan item 7).** Every `study_compare.py run` also writes `<method>_s<seed>.events.jsonl`, the attacker's action sequence of each induced failure (or of the closest approach), which replays the event exactly. `event_labels.py` replays every event and marks it: COLREG situation and SUT role at the first warning, attacker sector and closing speed at the event, SUT state, generation mode of the attacker (direct, single, multi-phase, tracking) and its response to the SUT's alterations, and two attributions by counterfactual replay against a library of 21 SUT manoeuvres: open loop (the attacker's recorded path, as the plan specifies) and closed loop (the attacker's policy reacts). Definitions and results: `review/EVENT_MARKING_2026-10-08.md`.
+
+```
+python study_batch.py compare --root runs/study --compare_dir compare_rec    # comparison with event recording
+python event_labels.py label --src runs/study/compare_rec --out runs/study/labels --ppo_root runs/study/ppo
+python event_labels.py summary --out runs/study/labels --catalogue replan:ppo_gae --events_root runs/study/compare_rec
+```
+
 **Geometry and baselines.** `check_attack_scenarios.py --out runs/enc_check --bands passing close v2 --episodes 12 --grid` runs the geometry self-test at both scales (the initial DCPA is the drawn value, the target passes on the named side), the scripted baselines hold course, intercept and pursuit per scenario and band, and the catalogue figure.
 
 **Visualisation.** `viz_tool.py all <run> --episodes 20` writes training and evaluation curves, the evaluation records, a replay fan, a chart-style GIF and storyboard of the first episode and an HTML report under `<run>/viz/`; `viz_tool.py chart <run> --episodes N --grid M` renders one GIF per episode and a grid; `viz_tool.py compare <run> <run2> ...` overlays runs. `chart_viz.py` is the renderer (full-scope map, navigation display with hulls, COLREG sectors, CPA prediction and data box, side panels).
@@ -111,6 +119,7 @@ python check_env_wiring.py                                                # W1 t
 | `run_matrix.py` | seed and scenario matrices with aggregation |
 | `study_compare.py` | method comparison on a fixed list of held-out encounters (scripted, random search, CEM, PPO), envelope series, report with two-level bootstrap |
 | `study_batch.py` | the study as a resumable process pool: PPO training, comparison, extra-budget search, report |
+| `event_labels.py` | replays every recorded event and marks it (situation, geometry, generation mode, open- and closed-loop attribution); summary tables, mark figures, example catalogue |
 | `check_attack_scenarios.py` | geometry self-test, scripted baselines, catalogue figure |
 | `chart_viz.py`, `viz_tool.py` | chart-style renderer; curves, evaluation records, replays and reports |
 | `generators/` | the trace generators (below) |

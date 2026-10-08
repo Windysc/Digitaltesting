@@ -198,7 +198,7 @@ Reading. The scripted intercept holds a lead-pursuit course at the speed cap; `r
 ## 6. Next steps, in order
 
 1. Train PPO against `replan` longer (the curve still rises at 3000 episodes), for example 9000 episodes x 10 seeds, about 2.5 h on 10 cores, with `study_batch.py` after raising `--episodes`.
-2. Counterfactual replay and attribution of the `replan` failures (plan item 7), with the COLREG role of the attacker at the event (overtaking, crossing, head-on) as a recorded field.
+2. Counterfactual replay and attribution of the `replan` failures (plan item 7), with the COLREG role of the attacker at the event (overtaking, crossing, head-on) as a recorded field. Done the same day for every event of the study: `EVENT_MARKING_2026-10-08.md` (no event is inescapable; PPO's events leave the SUT the fewest escape options among the learned and searched methods).
 3. A closed-loop parametric search baseline (intercept family with lead angle and speed schedule, tuned by CEM) on the same 48 encounters and budget.
 4. A stronger SUT: `replan` with a speed response and a stern-sector rule; and the speed ratios 1.05 to 1.2 to locate where the re-planner stops resisting.
 5. A collision-only run, and held-out intervals set from the private AIS encounter statistics (owner, locally).

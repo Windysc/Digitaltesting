@@ -327,6 +327,7 @@ class TargetShip:
         self.track = [(self.x, self.y)]
         self.psi_track = [self.psi]          # heading at every sub-step, for checks of the sailed yaw rate
         self.xte = 0.0
+        self.override = None                 # counterfactual control (set_override), cleared on every reset
 
     def _project(self):
         """Nearest route segment: (segment course deg, signed cross-track m)."""
@@ -360,8 +361,25 @@ class TargetShip:
         danger = rng < p['detect_range'] and dcpa < p['alert_dcpa'] and 0.0 <= tcpa < p['alert_tcpa']
         return danger, dcpa, tcpa
 
+    def set_override(self, course_deg, speed, accel=0.1):
+        """Counterfactual control (event_labels.py): from now on steer course_deg and change speed toward
+        `speed` within the turn rate and +-accel [m/s^2], ignoring the route, the preset and the attacker."""
+        self.override = (float(course_deg), float(speed), float(accel))
+
     def advance(self, dt, own=None, t=None):
         p = self.params
+        if getattr(self, 'override', None) is not None:
+            course, speed, accel = self.override
+            err = E.wrap_deg(course - self.psi)
+            self.psi = E.wrap_deg(self.psi + max(-self.turn_rate * dt, min(self.turn_rate * dt, err)))
+            self.speed += max(-accel * dt, min(accel * dt, speed - self.speed))
+            rad = math.radians(self.psi)
+            self.x += self.speed * math.cos(rad) * dt
+            self.y += self.speed * math.sin(rad) * dt
+            self.t += dt
+            self.track.append((self.x, self.y))
+            self.psi_track.append(self.psi)
+            return
         if p.get('fixed_track'):
             # fixed track: position is a function of time only, the attacker is ignored
             self.s += self.speed * dt

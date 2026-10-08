@@ -185,10 +185,12 @@ def run(args):
         extra['checkpoint'] = os.path.relpath(ckpt, args.run_dir)
         import torch
         torch.manual_seed(args.seed)
+    events = []
     for i in range(len(encs)):
         dec0, sub0 = env.sim_decisions, env.sim_substeps
         first, coll, best_margin, n_try = -1, 0, math.inf, 0
         evasions = 0
+        kept = None                                    # actions of the event, else of the closest approach
         if args.method in BASELINES:
             fn = BASELINES[args.method]
             budget = 1
@@ -208,10 +210,17 @@ def run(args):
                 searcher.tell(plan, score(ev, env.std))
             n_try += 1
             evasions = max(evasions, ev['target_evasions'])
+            if ev['min_distance'] < best_margin or ev['success']:
+                kept = (k + 1, [int(a) for a in env.ownship_action])
             best_margin = min(best_margin, ev['min_distance'])
             if ev['success']:
                 first, coll = k + 1, ev['collision']
                 break
+        # every action sequence replays exactly (deterministic environment): event_labels.py marks the events from it
+        events.append(dict(sut=args.sut, method=tag, seed=args.seed, encounter=i, scenario=encs[i][0],
+                           encounter_seed=encs[i][1], kind='event' if first > 0 else 'closest', attempt=kept[0],
+                           v_max=args.v_max, split=args.split, scenario_spec=args.scenario,
+                           per_scenario=args.per_scenario, enc_seed=args.enc_seed, actions=kept[1]))
         rows.append(dict(sut=args.sut, method=tag, seed=args.seed, encounter=i, scenario=encs[i][0],
                          family=ev['family'], encounter_seed=encs[i][1], found=int(first > 0), first_attempt=first,
                          collision=coll, attempts=n_try, transitions=env.sim_decisions - dec0,
@@ -221,6 +230,9 @@ def run(args):
     with open(path, 'w', newline='') as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader(); w.writerows(rows)
+    with open(os.path.join(out_dir, '%s_s%d.events.jsonl' % (tag, args.seed)), 'w') as f:
+        for e in events:
+            f.write(json.dumps(e) + '\n')
     found = np.mean([r['found'] for r in rows])
     print('%s %s seed %d: found %.3f | transitions %d' % (args.sut, tag, args.seed, found,
                                                          sum(r['transitions'] for r in rows)))

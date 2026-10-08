@@ -45,7 +45,7 @@ def train_jobs(a):
 
 def compare_jobs(a):
     jobs = []
-    out = os.path.join(a.root, 'compare')
+    out = os.path.join(a.root, a.compare_dir)
     base = [sys.executable, os.path.join(HERE, 'study_compare.py'), 'run', '--out', out, '--budget', str(a.budget),
             '--v_max', '%g' % a.v_max, '--tmp', os.path.join(a.root, 'logs')]
     for sut in SUTS:
@@ -115,6 +115,7 @@ def main():
     ap.add_argument('--eval_every', type=int, default=250)
     ap.add_argument('--budget', type=int, default=100)
     ap.add_argument('--v_max', type=float, default=6.0)
+    ap.add_argument('--compare_dir', default='compare', help='compare / report: result folder under --root')
     a = ap.parse_args()
     a.root = os.path.abspath(a.root)
     if a.cmd == 'train':
@@ -134,7 +135,7 @@ def main():
         extra = sorted(d for d in glob.glob(os.path.join(a.root, 'compare_b*'))
                        if os.path.isdir(d) and re.fullmatch(r'compare_b\d+', os.path.basename(d)))
         sys.exit(subprocess.call([sys.executable, os.path.join(HERE, 'study_compare.py'), 'report', '--out',
-                                  os.path.join(a.root, 'compare'), '--budget', str(a.budget),
+                                  os.path.join(a.root, a.compare_dir), '--budget', str(a.budget),
                                   '--ppo_root', os.path.join(a.root, 'ppo'), '--extra', ','.join(extra)]))
 
 
