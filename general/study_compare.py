@@ -15,8 +15,10 @@ Methods
   ppo                          a trained checkpoint: attempt 1 = argmax policy, then sampled episodes
 
 Sub-commands
-  run     one (method, sut, seed) -> <out>/<sut>/<method>_s<seed>.csv (one row per encounter)
-  report  all csv under <out> -> summary.csv, summary.md, budget_curves.png
+  run       one (method, sut, seed) -> <out>/<sut>/<method>_s<seed>.csv (one row per encounter)
+  report    all csv under <out> -> summary.csv, summary.md, paired_bootstrap.csv, budget_curves.png
+  envelope  scripted attackers x SUT x attacker top speed on the same encounters -> <out>/envelope.csv
+            (where the benchmark saturates: --v_list 6,7.5,9,12 = speed ratio 1.0-2.0 to the 6 m/s target)
 
 Simulator cost is logged in episodes, transitions (decisions) and 1 s sub-steps; the PPO training cost
 is read from the run's eval_result.txt (transitions and sub-steps up to the selected checkpoint).
@@ -146,19 +148,23 @@ def ppo_policy(agent, deterministic):
     return pol
 
 
-def training_cost(run_dir, ckpt):
-    """(episodes, transitions, sub-steps) used by PPO up to the selected checkpoint (incl. selection evals)."""
+def training_cost(run_dir, ckpt=None):
+    """Simulator cost of obtaining the deployed PPO policy: the WHOLE training run (the best checkpoint is
+    only known once it ends) plus every checkpoint-selection evaluation (separate encounters, counted from
+    the per-episode eval_dicts files). Conservative for PPO."""
+    import pandas as pd
     path = os.path.join(run_dir, 'eval_logs', 'eval_result.txt')
     rows = [l.split() for l in open(path).read().splitlines()[1:] if l.strip()]
-    best_ep, best = None, -1.0
-    for r in rows:
+    best_ep, best = int(rows[-1][0]), 0.0
+    for r in rows:                                   # the trainer saves _best on a strictly higher success rate
         if float(r[3]) > best:
-            best, best_ep = float(r[3]), r
-    r = best_ep if (best_ep is not None and ckpt.endswith('_best.pth')) else rows[-1]
-    n_eval = json.load(open(os.path.join(run_dir, 'args.json')))['num_eval']
-    i_ep = int(r[0])
-    k = sum(1 for x in rows if int(x[0]) <= i_ep)
-    return i_ep + k * n_eval, int(r[4]), int(r[5])
+            best, best_ep = float(r[3]), int(r[0])
+    sel = [pd.read_csv(f) for f in glob.glob(os.path.join(run_dir, 'eval_logs', 'eval_dicts_episode_*.csv'))]
+    sel = pd.concat(sel, ignore_index=True) if sel else pd.DataFrame(columns=['steps', 'substeps'])
+    return dict(train_episodes=int(rows[-1][0]), train_transitions=int(rows[-1][4]), train_substeps=int(rows[-1][5]),
+                select_episodes=len(sel), select_transitions=int(sel['steps'].sum()),
+                select_substeps=int(sel['substeps'].sum()) if 'substeps' in sel else -1,
+                selected_episode=best_ep if (ckpt is None or str(ckpt).endswith('_best.pth')) else int(rows[-1][0]))
 
 
 # ------------------------------------------------------------------ run
@@ -175,7 +181,7 @@ def run(args):
     agent = None
     if args.method == 'ppo':
         agent, ckpt = load_ppo(args.run_dir, env)
-        extra = dict(zip(('train_episodes', 'train_transitions', 'train_substeps'), training_cost(args.run_dir, ckpt)))
+        extra = training_cost(args.run_dir, ckpt)
         extra['checkpoint'] = os.path.relpath(ckpt, args.run_dir)
         import torch
         torch.manual_seed(args.seed)
@@ -195,6 +201,7 @@ def run(args):
                 ev = rollout(env, i, lambda e, o, kk: fn(e, o))
             elif args.method == 'ppo':
                 ev = rollout(env, i, ppo_policy(agent, deterministic=(k == 0)))
+                agent.buffer.clear()          # sampled actions are stored for training; deployment never trains
             else:
                 plan = searcher.propose()
                 ev = rollout(env, i, plan_policy(plan))
@@ -219,6 +226,31 @@ def run(args):
                                                          sum(r['transitions'] for r in rows)))
 
 
+# ------------------------------------------------------------------ envelope
+def envelope(args):
+    import pandas as pd
+    encs = encounter_list(args.scenario, args.per_scenario, args.enc_seed)
+    rows = []
+    for v in [float(x) for x in args.v_list.split(',')]:
+        for sut in args.suts.split(','):
+            env = make_env(sut, encs, v_max=v, split=args.split, save_dir=args.tmp)
+            for m in ('hold', 'intercept', 'pursuit'):
+                fn = BASELINES[m]
+                evs = [rollout(env, i, lambda e, o, k: fn(e, o)) for i in range(len(encs))]
+                d = pd.DataFrame(evs)
+                row = dict(v_max=v, speed_ratio=round(v / env.cruise, 2), sut=sut, method=m, encounters=len(d),
+                           found=round(d['success'].mean(), 3), collision=round(d['collision'].mean(), 3),
+                           clear=round((d['outcome'] == 'clear').mean(), 3),
+                           unresolved=round((d['outcome'] == 'unresolved').mean(), 3),
+                           off_map=round((d['outcome'] == 'off_map').mean(), 3),
+                           target_evasions=round(d['target_evasions'].mean(), 2), mean_steps=round(d['steps'].mean(), 1))
+                row.update({'found_' + f: round(g['success'].mean(), 2) for f, g in d.groupby('family')})
+                rows.append(row)
+                print(row, flush=True)
+    os.makedirs(args.out, exist_ok=True)
+    pd.DataFrame(rows).to_csv(os.path.join(args.out, 'envelope.csv'), index=False)
+
+
 # ------------------------------------------------------------------ report
 def wilson(k, n, z=1.96):
     if n == 0:
@@ -230,73 +262,210 @@ def wilson(k, n, z=1.96):
     return (c - h, c + h)
 
 
+SUT_ORDER = ['fixed', 'manual', 'autonomous', 'replan']
+SUT_TITLE = {'fixed': 'fixed track (sanity case)', 'manual': 'manual (one alteration, 20 s latency)',
+             'autonomous': 'autonomous (one alteration)', 'replan': 'replan (re-planning every 6 s)'}
+LEGEND_ORDER = ['hold course', 'pursuit', 'intercept', 'random search, 100 ep', 'random search, 300 ep',
+                'CEM, 100 ep', 'CEM, 300 ep', 'PPO (Monte-Carlo update)', 'PPO (GAE)']
+
+
+def method_style(m):
+    """Fixed plotting style per method, the same in every panel."""
+    table = {'hold': dict(color='0.55', marker='x', ls='none', label='hold course'),
+             'pursuit': dict(color='0.35', marker='s', ls='none', label='pursuit'),
+             'intercept': dict(color='black', marker='o', ls='none', label='intercept'),
+             'random': dict(color='tab:blue', ls='--', lw=1.3, label='random search, 100 ep'),
+             'random_b300': dict(color='tab:blue', ls='-', lw=1.6, label='random search, 300 ep'),
+             'cem': dict(color='tab:orange', ls='--', lw=1.3, label='CEM, 100 ep'),
+             'cem_b300': dict(color='tab:orange', ls='-', lw=1.6, label='CEM, 300 ep'),
+             'ppo_mc': dict(color='tab:red', ls='--', lw=1.3, label='PPO (Monte-Carlo update)'),
+             'ppo_gae': dict(color='tab:red', ls='-', lw=1.8, label='PPO (GAE)')}
+    return dict(table.get(m, dict(color='tab:green', ls='-', label=m)))
+
+
+def _load(out, budget, label=''):
+    import pandas as pd
+    files = glob.glob(os.path.join(out, '*', '*.csv'))
+    if not files:
+        return None
+    df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    df['budget'] = np.where(df['method'].isin(list(BASELINES)), 1, budget)
+    if label:
+        df['method'] = df['method'] + label
+    return df
+
+
+def _matrix(g):
+    """seeds x encounters array of the found flag (one method, one SUT)."""
+    piv = g.pivot_table(index='seed', columns='encounter', values='found', aggfunc='mean')
+    return piv.values, list(piv.columns)
+
+
+def _boot(mats, rng, n=2000):
+    """Two-level bootstrap: encounters resampled jointly for all methods, seeds resampled per method.
+    mats: list of seeds x encounters arrays on the same encounter columns. Returns n x len(mats) means."""
+    n_enc = mats[0].shape[1]
+    out = np.empty((n, len(mats)))
+    for b in range(n):
+        e = rng.randint(n_enc, size=n_enc)
+        for j, m in enumerate(mats):
+            s = rng.randint(m.shape[0], size=m.shape[0])
+            out[b, j] = m[np.ix_(s, e)].mean()
+    return out
+
+
+def _found_within(g, b):
+    """seeds x encounters array: failure induced within b episodes per encounter."""
+    f = ((g['found'] == 1) & (g['first_attempt'] <= b)).astype(float)
+    return g.assign(f=f).pivot_table(index='seed', columns='encounter', values='f', aggfunc='mean').values
+
+
+def _spend_within(g, b):
+    """Mean total transitions per seed for a budget of b episodes per encounter (search part approximated by
+    attempts x mean transitions per attempt of each encounter) plus PPO training and checkpoint selection."""
+    per_try = g['transitions'] / g['attempts'].clip(lower=1)
+    search = (np.minimum(g['attempts'], b) * per_try).groupby(g['seed']).sum()
+    fixed = g.groupby('seed')[['train_transitions', 'select_transitions']].first().sum(axis=1)
+    return float((search + fixed).mean())
+
+
+def matched_budget(df, rng):
+    """Every method at its own budget, PPO also read at 1 and 10 episodes per encounter, with costs; and the
+    paired differences of each PPO reading against the scripted intercept and each search method at full budget."""
+    import pandas as pd
+    rows, pairs = [], []
+    for sut, gs in df.groupby('sut'):
+        entries = []
+        for m, g in gs.groupby('method'):
+            B = int(g['budget'].iloc[0])
+            budgets = sorted({1, 10, B}) if m.startswith('ppo') else [B]
+            for b in budgets:
+                entries.append((m, b, g))
+        mats = {}
+        for m, b, g in entries:
+            mat = _found_within(g, b)
+            mats[(m, b)] = mat
+            bs = _boot([mat], rng)[:, 0]
+            rows.append(dict(sut=sut, method=m, episodes_per_encounter=b, seeds=mat.shape[0], found=round(mat.mean(), 3),
+                             boot_lo=round(np.percentile(bs, 2.5), 3), boot_hi=round(np.percentile(bs, 97.5), 3),
+                             total_transitions_per_seed=int(_spend_within(g, b))))
+        refs = [(m, b) for (m, b, g) in entries if not m.startswith('ppo') and m not in ('hold', 'pursuit')]
+        for (m, b) in [(m, b) for (m, b, g) in entries if m.startswith('ppo')]:
+            for (r, rb) in refs:
+                bs = _boot([mats[(m, b)], mats[(r, rb)]], rng)
+                d = bs[:, 0] - bs[:, 1]
+                pairs.append(dict(sut=sut, a='%s<=%d' % (m, b), b='%s<=%d' % (r, rb),
+                                  diff=round(mats[(m, b)].mean() - mats[(r, rb)].mean(), 3),
+                                  ci_lo=round(np.percentile(d, 2.5), 3), ci_hi=round(np.percentile(d, 97.5), 3)))
+    return pd.DataFrame(rows), pd.DataFrame(pairs)
+
+
 def report(args):
     import pandas as pd
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    files = glob.glob(os.path.join(args.out, '*', '*.csv'))
-    df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
-    B = args.budget
-    lines, summ = [], []
+    parts = [_load(args.out, args.budget)]
+    for extra in [x for x in args.extra.split(',') if x]:
+        b = int(os.path.basename(os.path.normpath(extra)).split('_b')[-1])
+        parts.append(_load(extra, b, label='_b%d' % b))
+    df = pd.concat([p for p in parts if p is not None], ignore_index=True)
+    ppo_cost = {}
+    if args.ppo_root:
+        for d in glob.glob(os.path.join(args.ppo_root, '*_s*')):
+            sut, adv, sd = os.path.basename(d).rsplit('_', 2)
+            if os.path.exists(os.path.join(d, 'eval_logs', 'eval_result.txt')):
+                ppo_cost[(sut, 'ppo_' + adv, int(sd[1:]))] = training_cost(d)
+    for c in ('train_transitions', 'select_transitions'):
+        df[c] = [ppo_cost.get((r.sut, r.method, r.seed), {}).get(c, 0) for r in df.itertuples()]
+    rng = np.random.RandomState(0)
+    summ, pairs, mats = [], [], {}
     for (sut, m), g in df.groupby(['sut', 'method']):
-        per_seed = g.groupby('seed')['found'].mean()
+        mat, cols = _matrix(g)
+        mats[(sut, m)] = (mat, cols)
+        bs = _boot([mat], rng)[:, 0]
+        per_seed = mat.mean(axis=1)
         k, n = int(g['found'].sum()), len(g)
-        lo, hi = wilson(k, n)
-        cost = g.groupby('seed')[['transitions', 'substeps']].sum().mean()
-        found_at = {b: g.assign(f=(g['found'] == 1) & (g['first_attempt'] <= b)).groupby('seed')['f'].mean().mean()
-                    for b in (1, 10, 100) if b <= B}
-        row = dict(sut=sut, method=m, seeds=per_seed.size, encounters=g['encounter'].nunique(),
-                   found=round(k / n, 3), ci_lo=round(lo, 3), ci_hi=round(hi, 3),
-                   seed_sd=round(per_seed.std(ddof=1), 3) if per_seed.size > 1 else 0.0,
-                   found_at_1=round(found_at.get(1, math.nan), 3), found_at_10=round(found_at.get(10, math.nan), 3),
-                   collision_given_found=round(g.loc[g['found'] == 1, 'collision'].mean(), 3) if k else math.nan,
+        spend = g.groupby('seed')[['transitions', 'substeps']].sum().mean()
+        fixed_cost = g.groupby('seed')[['train_transitions', 'select_transitions']].first().mean()
+        B = int(g['budget'].iloc[0])
+        row = dict(sut=sut, method=m, seeds=mat.shape[0], encounters=mat.shape[1], budget=B,
+                   found=round(mat.mean(), 3), boot_lo=round(np.percentile(bs, 2.5), 3),
+                   boot_hi=round(np.percentile(bs, 97.5), 3),
+                   wilson_lo=round(wilson(k, n)[0], 3) if mat.shape[0] == 1 else math.nan,
+                   wilson_hi=round(wilson(k, n)[1], 3) if mat.shape[0] == 1 else math.nan,
+                   seed_sd=round(per_seed.std(ddof=1), 3) if mat.shape[0] > 1 else 0.0)
+        for b in (1, 10, 100, 300):
+            if b <= B:
+                row['found_at_%d' % b] = round(((g['found'] == 1) & (g['first_attempt'] <= b)).groupby(g['seed']).mean().mean(), 3)
+        row.update(collision_given_found=round(g.loc[g['found'] == 1, 'collision'].mean(), 3) if k else math.nan,
                    median_min_distance_not_found=round(g.loc[g['found'] == 0, 'min_distance'].median(), 1) if k < n else math.nan,
-                   search_transitions_per_seed=int(cost['transitions']), search_substeps_per_seed=int(cost['substeps']))
-        if 'train_transitions' in g and g['train_transitions'].notna().any():
-            row['train_transitions_per_seed'] = int(g.groupby('seed')['train_transitions'].first().mean())
+                   search_transitions_per_seed=int(spend['transitions']),
+                   train_transitions_per_seed=int(fixed_cost['train_transitions']),
+                   select_transitions_per_seed=int(fixed_cost['select_transitions']),
+                   total_transitions_per_seed=int(spend['transitions'] + fixed_cost.sum()))
         for fam, gf in g.groupby('family'):
             row['found_' + fam] = round(gf['found'].mean(), 3)
         summ.append(row)
     S = pd.DataFrame(summ)
-    S.to_csv(os.path.join(args.out, 'summary.csv'), index=False)
-    # paired bootstrap: method difference on the common (seed, encounter) grid, resampling encounters and seeds
-    rng = np.random.RandomState(0)
-    pairs = []
-    for sut, g in df.groupby('sut'):
-        piv = g.pivot_table(index=['encounter'], columns='method', values='found', aggfunc='mean')
-        ms = list(piv.columns)
-        for a in ms:
-            for b in ms:
-                if a >= b:
+    for sut in sorted(df['sut'].unique()):
+        ms = sorted(m for (s_, m) in mats if s_ == sut)
+        for i, a in enumerate(ms):
+            for b in ms[i + 1:]:
+                (ma, ca), (mb, cb) = mats[(sut, a)], mats[(sut, b)]
+                if ca != cb:
                     continue
-                d = (piv[a] - piv[b]).values
-                bs = [d[rng.randint(len(d), size=len(d))].mean() for _ in range(2000)]
-                pairs.append(dict(sut=sut, a=a, b=b, diff=round(d.mean(), 3),
-                                  ci_lo=round(np.percentile(bs, 2.5), 3), ci_hi=round(np.percentile(bs, 97.5), 3)))
+                bs = _boot([ma, mb], rng)
+                d = bs[:, 0] - bs[:, 1]
+                pairs.append(dict(sut=sut, a=a, b=b, diff=round(ma.mean() - mb.mean(), 3),
+                                  ci_lo=round(np.percentile(d, 2.5), 3), ci_hi=round(np.percentile(d, 97.5), 3),
+                                  p_le_0=round(float((d <= 0).mean()), 4)))
     P = pd.DataFrame(pairs)
+    S.to_csv(os.path.join(args.out, 'summary.csv'), index=False)
     P.to_csv(os.path.join(args.out, 'paired_bootstrap.csv'), index=False)
+    M, MP = matched_budget(df, rng)
+    M.to_csv(os.path.join(args.out, 'matched_budget.csv'), index=False)
+    MP.to_csv(os.path.join(args.out, 'matched_pairs.csv'), index=False)
     with open(os.path.join(args.out, 'summary.md'), 'w') as f:
-        f.write(S.to_markdown(index=False) + '\n\n' + P.to_markdown(index=False) + '\n')
-    # budget curves
-    suts = sorted(df['sut'].unique())
-    fig, axs = plt.subplots(1, len(suts), figsize=(4.2 * len(suts), 3.6), sharey=True, squeeze=False)
-    bs_ = np.arange(1, B + 1)
-    for ax, sut in zip(axs[0], suts):
+        f.write(S.to_markdown(index=False) + '\n\n' + P.to_markdown(index=False) + '\n\n'
+                + M.to_markdown(index=False) + '\n\n' + MP.to_markdown(index=False) + '\n')
+    # budget curves (episodes per encounter) and equal-budget view (total transitions per seed, incl. PPO training
+    # and checkpoint selection; search spend up to b approximated by attempts x mean transitions per attempt).
+    # One style per method in every panel, one legend, panels from the sanity case to the strongest SUT.
+    order = [x for x in SUT_ORDER if x in set(df['sut'])] + sorted(set(df['sut']) - set(SUT_ORDER))
+    fig, axs = plt.subplots(2, len(order), figsize=(4.2 * len(order), 7.4), sharey=True, squeeze=False)
+    handles = {}
+    for j, sut in enumerate(order):
         for m, g in df[df['sut'] == sut].groupby('method'):
+            st = method_style(m)
+            B = int(g['budget'].iloc[0])
+            bs_ = np.unique(np.round(np.logspace(0, np.log10(B), 40)).astype(int))
             curve = [((g['found'] == 1) & (g['first_attempt'] <= b)).groupby(g['seed']).mean().mean() for b in bs_]
-            ax.plot(bs_, curve, label=m)
-        ax.set_xscale('log'); ax.set_title('SUT: %s' % sut); ax.set_xlabel('episodes per encounter')
-        ax.grid(alpha=.3)
-    axs[0][0].set_ylabel('encounters with a failure found'); axs[0][-1].legend(fontsize=8)
-    fig.tight_layout(); fig.savefig(os.path.join(args.out, 'budget_curves.png'), dpi=130)
+            per_try = g['transitions'] / g['attempts'].clip(lower=1)
+            fixed = g.groupby('seed')[['train_transitions', 'select_transitions']].first().sum(axis=1).mean()
+            spend = [(np.minimum(g['attempts'], b) * per_try).groupby(g['seed']).sum().mean() + fixed for b in bs_]
+            for ax, x in ((axs[0][j], bs_), (axs[1][j], spend)):
+                h, = ax.plot(x, curve, **st)
+            handles.setdefault(st['label'], h)
+        axs[0][j].set_title('SUT: %s' % SUT_TITLE.get(sut, sut), fontsize=10)
+        axs[0][j].set_xlabel('search budget, episodes per encounter')
+        axs[1][j].set_xlabel('total transitions per seed\n(search + PPO training and checkpoint selection)')
+        for ax in axs[:, j]:
+            ax.set_xscale('log'); ax.grid(alpha=.3)
+    for ax in axs[:, 0]:
+        ax.set_ylabel('failure discovery rate\n(held-out encounters with an induced failure)')
+    labels = [l for l in LEGEND_ORDER if l in handles]
+    fig.legend([handles[l] for l in labels], labels, loc='lower center', ncol=min(len(labels), 9), fontsize=8,
+               frameon=False)
+    fig.tight_layout(rect=(0, 0.05, 1, 1)); fig.savefig(os.path.join(args.out, 'budget_curves.png'), dpi=130)
+    pd.set_option('display.width', 250)
     print(S.to_string(index=False))
     print(P.to_string(index=False))
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('cmd', choices=['run', 'report'])
+    ap.add_argument('cmd', choices=['run', 'report', 'envelope'])
     ap.add_argument('--method', default='random')
     ap.add_argument('--sut', default='replan')
     ap.add_argument('--seed', type=int, default=1)
@@ -310,8 +479,12 @@ def main():
     ap.add_argument('--ppo_tag', default='')
     ap.add_argument('--out', default='runs/study')
     ap.add_argument('--tmp', default='.')
+    ap.add_argument('--ppo_root', default='', help='report: PPO run folders, to recompute the full training cost')
+    ap.add_argument('--extra', default='', help='report: comma list of further compare_b<budget> folders')
+    ap.add_argument('--v_list', default='6,7.5,9,12', help='envelope: attacker top speeds [m/s]')
+    ap.add_argument('--suts', default='fixed,manual,autonomous,replan', help='envelope: systems under test')
     args = ap.parse_args()
-    run(args) if args.cmd == 'run' else report(args)
+    {'run': run, 'report': report, 'envelope': envelope}[args.cmd](args)
 
 
 if __name__ == '__main__':

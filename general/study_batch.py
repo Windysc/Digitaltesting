@@ -4,12 +4,17 @@ study_batch.py -- runs the study of review/STUDY_PLAN_PEER_REVIEW.md as a proces
   python study_batch.py train   --root <dir>   PPO adversaries: SUT x seed (+ the Monte-Carlo ablation)
   python study_batch.py compare --root <dir>   every method on the common held-out encounters
   python study_batch.py report  --root <dir>
+  python study_batch.py search  --root <dir> --sut replan --methods random,cem --budget 300
+                                               the search methods at another per-encounter budget,
+                                               into compare_b<budget>/ (equal-total-budget check)
 
 Layout under <root>: ppo/<sut>_<adv>_s<seed>/ (training runs), compare/<sut>/<method>_s<seed>.csv,
 logs/. Jobs whose output exists are skipped, so a stopped batch resumes.
 """
 import argparse
+import glob
 import os
+import re
 import subprocess
 import sys
 import time
@@ -63,6 +68,19 @@ def compare_jobs(a):
     return [j for j in jobs if not os.path.exists(j[2])]
 
 
+def search_jobs(a):
+    out = os.path.join(a.root, 'compare_b%d' % a.budget)
+    base = [sys.executable, os.path.join(HERE, 'study_compare.py'), 'run', '--out', out, '--budget', str(a.budget),
+            '--v_max', '%g' % a.v_max, '--tmp', os.path.join(a.root, 'logs')]
+    jobs = []
+    for sut in a.sut.split(','):
+        for m in a.methods.split(','):
+            for s in SEEDS:
+                jobs.append(('b%d_%s_%s_s%d' % (a.budget, sut, m, s), base + ['--method', m, '--sut', sut, '--seed', str(s)],
+                             os.path.join(out, sut, '%s_s%d.csv' % (m, s))))
+    return [j for j in jobs if not os.path.exists(j[2])]
+
+
 def run_pool(jobs, workers, logdir, mark_done):
     os.makedirs(logdir, exist_ok=True)
     env = dict(os.environ, OMP_NUM_THREADS='1', MKL_NUM_THREADS='1')
@@ -88,7 +106,9 @@ def run_pool(jobs, workers, logdir, mark_done):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('cmd', choices=['train', 'compare', 'report'])
+    ap.add_argument('cmd', choices=['train', 'compare', 'report', 'search'])
+    ap.add_argument('--sut', default='replan', help='search: comma list of systems under test')
+    ap.add_argument('--methods', default='random,cem', help='search: comma list of search methods')
     ap.add_argument('--root', required=True)
     ap.add_argument('--workers', type=int, default=20)
     ap.add_argument('--episodes', type=int, default=3000)
@@ -101,13 +121,21 @@ def main():
         jobs = train_jobs(a)
         print('%d training jobs' % len(jobs), flush=True)
         run_pool(jobs, a.workers, os.path.join(a.root, 'logs'), True)
+    elif a.cmd == 'search':
+        jobs = search_jobs(a)
+        print('%d search jobs at %d episodes per encounter' % (len(jobs), a.budget), flush=True)
+        run_pool(jobs, a.workers, os.path.join(a.root, 'logs'), False)
     elif a.cmd == 'compare':
         jobs = compare_jobs(a)
         print('%d comparison jobs' % len(jobs), flush=True)
         run_pool(jobs, a.workers, os.path.join(a.root, 'logs'), False)
     else:
-        subprocess.call([sys.executable, os.path.join(HERE, 'study_compare.py'), 'report', '--out',
-                         os.path.join(a.root, 'compare'), '--budget', str(a.budget)])
+        # extra-budget result folders only (compare_b<budget>), never the batch logs next to them
+        extra = sorted(d for d in glob.glob(os.path.join(a.root, 'compare_b*'))
+                       if os.path.isdir(d) and re.fullmatch(r'compare_b\d+', os.path.basename(d)))
+        sys.exit(subprocess.call([sys.executable, os.path.join(HERE, 'study_compare.py'), 'report', '--out',
+                                  os.path.join(a.root, 'compare'), '--budget', str(a.budget),
+                                  '--ppo_root', os.path.join(a.root, 'ppo'), '--extra', ','.join(extra)]))
 
 
 if __name__ == '__main__':

@@ -60,6 +60,18 @@ python run_matrix.py --out runs/enc_full --tasks enc --control full --enc_scenar
 python run_matrix.py --out runs/enc_full --summary-only
 ```
 
+**Study: systems under test and method comparison (2026-10-08).** The study plan of `review/STUDY_PLAN_PEER_REVIEW.md` runs with the following options of the trainer and the environment. `--automation fixed|manual|autonomous|replan` sets the target's collision-avoidance preset, the system under test (SUT); `fixed` is the sanity case, `manual` and `autonomous` make one starboard alteration per emergency, `replan` re-plans every 6 s to the starboard alteration with the largest predicted miss distance. `--param_split train|test` draws course difference, meeting time, initial DCPA and parallel-lane lag from the lower 70 % or the upper 30 % of their ranges, so the test intervals stay unseen in training. `--advantage gae` replaces the reference Monte-Carlo update with GAE(0.95), bootstrapping the value when an update falls inside an episode; `--eval_deterministic 1` selects checkpoints on the argmax policy and `--select_seed` keeps the selection encounters apart from the test encounters. `study_batch.py` runs the whole study as a process pool, `study_compare.py` attacks a fixed list of 48 held-out encounters with every method (scripted references, random search and the cross-entropy method over a three-segment manoeuvre, the trained PPO policy) and writes the report:
+
+```
+python study_batch.py train   --root runs/study      # PPO: 4 SUTs x 10 seeds (GAE) + Monte-Carlo ablation on autonomous, replan
+python study_batch.py compare --root runs/study      # every method on the common held-out encounters, 100 episodes per encounter
+python study_batch.py search  --root runs/study --sut replan --methods random,cem --budget 300   # equal total budget
+python study_batch.py report  --root runs/study      # summary.csv / .md, paired_bootstrap.csv, budget_curves.png
+python study_compare.py envelope --out runs/study/envelope   # scripted attackers x SUT x attacker top speed
+```
+
+Jobs whose output exists are skipped, so a stopped batch resumes. The attacker's top speed is 6 m/s in the study (`--v_max`, the target's cruise speed); results and their reading are in `review/STUDY_RUNS_2026-10-08.md`.
+
 **Geometry and baselines.** `check_attack_scenarios.py --out runs/enc_check --bands passing close v2 --episodes 12 --grid` runs the geometry self-test at both scales (the initial DCPA is the drawn value, the target passes on the named side), the scripted baselines hold course, intercept and pursuit per scenario and band, and the catalogue figure.
 
 **Visualisation.** `viz_tool.py all <run> --episodes 20` writes training and evaluation curves, the evaluation records, a replay fan, a chart-style GIF and storyboard of the first episode and an HTML report under `<run>/viz/`; `viz_tool.py chart <run> --episodes N --grid M` renders one GIF per episode and a grid; `viz_tool.py compare <run> <run2> ...` overlays runs. `chart_viz.py` is the renderer (full-scope map, navigation display with hulls, COLREG sectors, CPA prediction and data box, side panels).
@@ -90,13 +102,15 @@ python check_env_wiring.py                                                # W1 t
 | `env_moving_obj.py` | world model and base `MassTestingEnv`: own ship with rate limits, obstacles, nine discrete actions, 1 s sub-steps |
 | `env_moving_attack.py` | the attack task on that world model |
 | `encounter_standard.py` | collision standard: CPA warning, ship domain, collision, CRI, COLREG type, event grading, lifecycle, `CollisionStandard(scale)` |
-| `scenario_targets.py` | scenario geometry, `TargetShip` (fixed track or reactive presets), trace routes through `ais_prep.py`, `ScenarioAttackEnv` |
-| `attack_scenarios.py` | the eight attack scenarios, the DCPA bands, `EncounterAttackEnv`, the scripted baselines |
-| `PPO.py` | the PPO agent (actor-critic, clipped surrogate); CPU by default, `PPO_DEVICE=cuda` for the GPU |
+| `scenario_targets.py` | scenario geometry, `TargetShip` (fixed track or reactive presets `manual`, `autonomous`, `replan`), trace routes through `ais_prep.py`, `ScenarioAttackEnv` |
+| `attack_scenarios.py` | the eight attack scenarios, the DCPA bands, the held-out parameter intervals, `EncounterAttackEnv` (system under test, fixed encounter lists, simulator-call counters), the scripted baselines |
+| `PPO.py` | the PPO agent (actor-critic, clipped surrogate); reference Monte-Carlo update or GAE with bootstrap (`gae_lambda`); CPU by default, `PPO_DEVICE=cuda` for the GPU |
 | `gym.py` | shim so that `import gym` in the trainers resolves to gymnasium |
 | `main_attack_ppo_enc.py` | attack trainer on the encounter scenarios (the main trainer) |
 | `main_attack_ppo_scen.py` | attack trainer of the earlier three-family arena variant |
 | `run_matrix.py` | seed and scenario matrices with aggregation |
+| `study_compare.py` | method comparison on a fixed list of held-out encounters (scripted, random search, CEM, PPO), envelope series, report with two-level bootstrap |
+| `study_batch.py` | the study as a resumable process pool: PPO training, comparison, extra-budget search, report |
 | `check_attack_scenarios.py` | geometry self-test, scripted baselines, catalogue figure |
 | `chart_viz.py`, `viz_tool.py` | chart-style renderer; curves, evaluation records, replays and reports |
 | `generators/` | the trace generators (below) |
