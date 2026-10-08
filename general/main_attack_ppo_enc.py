@@ -11,6 +11,14 @@ speed, scenario catalogue x initial DCPA band, attacker with full control of the
 ownship parameters inside set limits (--control full, default: position area, speed,
 acceleration, turn rate, course change, action levels) or turn-only (--control turn).
 Evaluation cycles through the selected scenarios so each is scored evenly.
+
+Study-plan options (2026-10-08, review/STUDY_PLAN_PEER_REVIEW.md item 2): --automation picks the target's
+collision-avoidance preset (the system under test; fixed = sanity case), --param_split trains on the
+train parameter intervals (the test intervals stay unseen), --advantage gae bootstraps the value when an
+update falls mid-episode, --eval_deterministic 1 scores the argmax policy, --select_seed keeps checkpoint
+selection away from the test encounters, --budget_transitions stops at a total number of environment
+transitions. eval_result.txt also logs the transitions and 1 s simulator sub-steps used so far, and
+env_config.json records every environment parameter.
 """
 import os
 import glob
@@ -132,14 +140,23 @@ def train(args):
                   turn_rate_deg=(args.turn_rate if args.turn_rate > 0 else None), trace=args.trace or None,
                   success_severity=args.success_severity, hold_steps=args.hold_steps,
                   max_encounter_s=(args.max_encounter_s if args.max_encounter_s > 0 else None),
-                  decision_interval=args.decision_interval, reward_type=args.reward_type, save_dir=args.save_dir)
-    env = EncounterAttackEnv(own_ship, cycle_scenarios=False, seed=args.seed, **enc_kw)
+                  decision_interval=args.decision_interval, reward_type=args.reward_type, save_dir=args.save_dir,
+                  automation=args.automation)
+    env = EncounterAttackEnv(own_ship, cycle_scenarios=False, seed=args.seed, param_split=args.param_split, **enc_kw)
     print('attack scenarios', env.names, '| DCPA band', args.dcpa_band, '| turn rate %.2f deg/s' % env.turn_rate)
     print(env.std)
     print('attacker limits', env.limits)
     print('actions', env.action_names)
     print('safety cap', env.max_decisions, 'decisions | observation', env.obs_dim, 'values | map', env.map_box)
     
+    with open(f'{save_dir}/env_config.json', 'wt') as f:
+        json.dump(dict(scenarios=env.names, band=env.band, automation=env.automation, param_split=env.param_split,
+                       limits={k: v for k, v in env.limits.items()}, actions=env.action_names, obs_dim=env.obs_dim,
+                       turn_rate=env.turn_rate, cap_decisions=env.cap_decisions, dt_decision=env.dt_decision,
+                       n_sub=env.n_sub, std={k: v for k, v in vars(env.std).items()
+                                             if isinstance(v, (int, float, str, tuple, list))}),
+                  f, indent=4, default=str)
+
     with open(f'{train_log_dir}/train_result.txt', 'w') as f:
         f.write(f'Episode AverageReturn Lens Success \n')
 
@@ -149,12 +166,14 @@ def train(args):
     # with open(f'{train_log_dir}/train_action.txt', 'w') as f:
     #     f.write(f'Episode action_list\n')
 
-    eval_env = EncounterAttackEnv(own_ship, cycle_scenarios=True, seed=args.seed + 1000, **enc_kw)
+    select_seed = args.select_seed if args.select_seed >= 0 else args.seed + 1000
+    eval_env = EncounterAttackEnv(own_ship, cycle_scenarios=True, seed=select_seed,
+                                  param_split=args.select_split or args.param_split, **enc_kw)
     
     
     # eval_envs_list.append(eval_env)
     with open(f'{eval_log_dir}/eval_result.txt', 'w') as f:
-        f.write(f'Episode AverageReturn Lens SuccessRate \n')
+        f.write(f'Episode AverageReturn Lens SuccessRate Transitions Substeps CollisionRate\n')
         
     # with open(f'{eval_log_dir}/eval_a.txt', 'w') as f:
     #     f.write(f'Episode a_list\n')
@@ -252,7 +271,8 @@ def train(args):
     ################# training procedure ################
 
     # initialize a PPO agent
-    ppo_agent = PPO(state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std)
+    ppo_agent = PPO(state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std,
+                    gae_lambda=(args.gae_lambda if args.advantage == 'gae' else None))
 
     # track total training time
     start_time = datetime.now().replace(microsecond=0)
@@ -303,9 +323,9 @@ def train(args):
             time_step +=1
             current_ep_reward += reward
 
-            # update PPO agent
+            # update PPO agent (GAE: the next state bootstraps an episode the update boundary cuts)
             if time_step % update_timestep == 0:
-                ppo_agent.update()
+                ppo_agent.update(state) if args.advantage == 'gae' else ppo_agent.update()
 
             # if continuous action space; then decay action std of ouput action distribution
             if has_continuous_action_space and time_step % action_std_decay_freq == 0:
@@ -399,7 +419,7 @@ def train(args):
             success_cnt = 0
             for i_eval in tqdm(range(args.num_eval)):
                 eval_eps_return, eval_eps_step, eval_eps_success, eval_eps_a, eval_eps_action, eval_eps_dict = \
-                    eval(eval_env, test_ppo_agent, max_ep_len)
+                    eval(eval_env, test_ppo_agent, max_ep_len, deterministic=bool(args.eval_deterministic))
                 eval_returns.append(eval_eps_return)
                 eval_steps.append(eval_eps_step)
                 eval_success.append(eval_eps_success)
@@ -421,7 +441,8 @@ def train(args):
                     #     f.write(f'[{i_episode}|{i_eval}] ' +' '.join(map(str, eval_eps_a)) + '\n')
                 
             with open(f'{eval_log_dir}/eval_result.txt', 'a') as f:
-                f.write(f'{i_episode} {np.mean(eval_returns)} {np.mean(eval_steps)} {np.mean(eval_success)} \n')
+                f.write(f'{i_episode} {np.mean(eval_returns)} {np.mean(eval_steps)} {np.mean(eval_success)} '
+                        f'{env.sim_decisions} {env.sim_substeps} {np.mean([d["collision"] for d in eval_dicts])}\n')
             
             if np.mean(eval_success) > best_eval_success:
                 print('Saving best checkpoint with success rate of:', np.mean(eval_success))
@@ -440,6 +461,10 @@ def train(args):
 
         print_running_reward += current_ep_reward
         print_running_episodes += 1
+        if args.budget_transitions > 0 and env.sim_decisions >= args.budget_transitions:
+            print('transition budget %d reached at episode %d' % (args.budget_transitions, i_episode))
+            ppo_agent.save(checkpoint_path.replace('.pth', '_final.pth'))
+            break
 
         log_running_reward += current_ep_reward
         log_running_episodes += 1
@@ -458,7 +483,7 @@ def train(args):
     print("============================================================================================")
 
 
-def eval(env, ppo_agent, max_ep_len=1000):
+def eval(env, ppo_agent, max_ep_len=1000, deterministic=False):
     state = env.reset()
     # current_ep_reward = 0
     eps_return = 0
@@ -466,7 +491,7 @@ def eval(env, ppo_agent, max_ep_len=1000):
     eps_success = 0
     for t in range(1, max_ep_len+1):
         # select action with policy
-        action = ppo_agent.select_action(state)
+        action = ppo_agent.select_action(state, deterministic=deterministic)
         # state, reward, done, _ = env.step(action)
         state, reward, done, success_flag = env.step(action)
         success_flags.append(success_flag)
@@ -545,6 +570,14 @@ def gen_args():
     parser.add_argument("--lat_range", type=str, default='', help='attacker north (lat) position limits lo,hi [m]; empty = encounter map')
     parser.add_argument("--acc_levels", type=int, default=3, help='odd number of acceleration levels (full control)')
     parser.add_argument("--rot_levels", type=int, default=3, help='odd number of turn-rate levels (full control); --turn_rate is the limit')
+    parser.add_argument("--automation", type=str, default='fixed', help='target preset = system under test: fixed | manual | autonomous | replan')
+    parser.add_argument("--param_split", type=str, default='all', help='parameter intervals for training: all | train | test')
+    parser.add_argument("--select_split", type=str, default='', help='intervals of the checkpoint-selection encounters; empty = --param_split')
+    parser.add_argument("--select_seed", type=int, default=-1, help='seed of the selection encounters; -1 = seed + 1000 (keep test seeds apart)')
+    parser.add_argument("--advantage", type=str, default='mc', help='mc: reference Monte-Carlo return | gae: GAE(lambda) with bootstrap')
+    parser.add_argument("--gae_lambda", type=float, default=0.95)
+    parser.add_argument("--eval_deterministic", type=int, default=0, help='1 = argmax policy in the evaluation')
+    parser.add_argument("--budget_transitions", type=int, default=0, help='stop after this many environment transitions; 0 = no limit')
     args = parser.parse_args()
 
     # BATCH_SIZE is the number of transitions sampled from the replay buffer

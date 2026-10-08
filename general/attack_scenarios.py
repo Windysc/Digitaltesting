@@ -63,7 +63,7 @@ import numpy as np
 import env_moving_obj as E
 import encounter_standard as S
 from env_moving_attack import MassTestingEnv as _AttackEnv
-from scenario_targets import (TargetShip, load_trace_shapes, prepare_trace_routes, place_trace_route,
+from scenario_targets import (AUTOMATION, TargetShip, load_trace_shapes, prepare_trace_routes, place_trace_route,
                               route_polyline, route_meta)
 
 ATTACK_SCENARIOS = {
@@ -98,6 +98,35 @@ FAMILY_COURSE = {'head_on': (174.0, 186.0), 'crossing_starboard': (60.0, 120.0),
 BANDS = ('collision', 'close', 'passing', 'wide', 'v2')
 PARALLEL_LAG = (0.5, 2.0)          # target starts this many domain_a astern of the attacker (parallel lanes)
 
+# held-out parameter intervals (study plan section 4, 2026-10-08): every sampled encounter parameter
+# (course difference, meeting time, initial DCPA within the band, parallel-lane lag) is drawn from the
+# fraction [0, SPLIT_AT) of its range for 'train' and [SPLIT_AT, 1] for 'test'; 'all' = the whole range.
+# The test corner is the obtuse crossings, late meetings and wide passings, never seen in training.
+SPLIT_AT = 0.7
+PARAM_SPLITS = ('all', 'train', 'test')
+
+
+def _draw(rng, lo, hi, split='all'):
+    """Uniform draw from the split's part of [lo, hi]."""
+    if split == 'train':
+        return float(rng.uniform(lo, lo + SPLIT_AT * (hi - lo)))
+    if split == 'test':
+        return float(rng.uniform(lo + SPLIT_AT * (hi - lo), hi))
+    return float(rng.uniform(lo, hi))
+
+
+def _draw_course(rng, lo, hi, split='all'):
+    """Course difference [deg]. Head-on (range around 180) splits on the deviation from reciprocal,
+    crossings on the magnitude, so port and starboard crossings share the same held-out corner.
+    'all' keeps the original draw, so earlier runs reproduce."""
+    if split == 'all':
+        return float(rng.uniform(lo, hi))
+    if lo < 180.0 < hi:
+        dev = _draw(rng, 0.0, max(180.0 - lo, hi - 180.0), split)
+        return 180.0 + (dev if rng.uniform() < 0.5 else -dev)
+    a_lo, a_hi = sorted((abs(lo), abs(hi)))
+    return math.copysign(_draw(rng, a_lo, a_hi, split), hi)
+
 
 def resolve_scenarios(spec):
     names = []
@@ -118,12 +147,14 @@ def band_range(band, std):
 
 
 def make_attack_scenario(name, std, speed, rng, band='passing', own_pos=(0.0, 0.0), own_cog_deg=0.0,
-                         shape_trace=None, cap_s=None):
+                         shape_trace=None, cap_s=None, split='all'):
     """Target route + metadata; the target holds the route at `speed` (fixed track)."""
     if name not in ATTACK_SCENARIOS:
         raise ValueError('unknown attack scenario %r' % name)
     if band not in BANDS:
         raise ValueError('dcpa band %r unknown; choose %s' % (band, BANDS))
+    if split not in PARAM_SPLITS:
+        raise ValueError('param split %r unknown; choose %s' % (split, PARAM_SPLITS))
     spec = ATTACK_SCENARIOS[name]
     fam, side = spec['family'], spec['side']
     cap_s = float(cap_s if cap_s else std.cap_s)
@@ -132,24 +163,25 @@ def make_attack_scenario(name, std, speed, rng, band='passing', own_pos=(0.0, 0.
     d_own = np.array([math.cos(own_psi), math.sin(own_psi)])
     n_own = np.array([-d_own[1], d_own[0]])                        # port side
     lo_hi = band_range(band, std)
-    dpsi = math.radians(rng.uniform(*FAMILY_COURSE[fam])) if FAMILY_COURSE[fam][1] > FAMILY_COURSE[fam][0] else 0.0
+    dpsi = (math.radians(_draw_course(rng, *FAMILY_COURSE[fam], split=split))
+            if FAMILY_COURSE[fam][1] > FAMILY_COURSE[fam][0] else 0.0)
     psi_t = own_psi + dpsi
     d_t = np.array([math.cos(psi_t), math.sin(psi_t)])
     if fam == 'parallel':
-        lateral = rng.uniform(*lo_hi) if lo_hi else rng.uniform(std.collision_dist, std.v2_dcpa_offset)
-        lag = rng.uniform(*PARALLEL_LAG) * std.domain_a
+        lateral = _draw(rng, *lo_hi, split=split) if lo_hi else _draw(rng, std.collision_dist, std.v2_dcpa_offset, split)
+        lag = _draw(rng, *PARALLEL_LAG, split=split) * std.domain_a
         start = own_pos + n_own * side * lateral - d_own * lag
         t_meet, offset, target_dcpa = -1.0, side * lateral, math.hypot(lateral, lag)
     else:
-        t_meet = float(rng.uniform(*std.t_meet))
+        t_meet = _draw(rng, *std.t_meet, split=split)
         vr = speed * (d_t - d_own)
         vr_hat = vr / max(np.linalg.norm(vr), 1e-9)
         k = max(abs(n_own[0] * vr_hat[1] - n_own[1] * vr_hat[0]), 0.2)   # |DCPA| per metre of offset
         if lo_hi:
-            target_dcpa = float(rng.uniform(*lo_hi))
+            target_dcpa = _draw(rng, *lo_hi, split=split)
             offset = side * target_dcpa / k
         else:                                                             # v2 sampling of the offset
-            offset = side * float(rng.uniform(0.0, std.v2_dcpa_offset))
+            offset = side * _draw(rng, 0.0, std.v2_dcpa_offset, split)
             target_dcpa = abs(offset) * k
         meet = own_pos + d_own * speed * t_meet + n_own * offset
         start = meet - d_t * speed * t_meet
@@ -225,7 +257,20 @@ class EncounterAttackEnv(_AttackEnv):
                  max_encounter_s=None, decision_interval=600, reward_type='final_attack_reward', save_dir='.',
                  seed=0, duration=None, X_LEN=None, Y_LEN=None, attack_range=None, control='full', v_range=None,
                  a_range=None, cog_limit=180.0, long_range=None, lat_range=None, acc_levels=3, rot_levels=3,
-                 **std_overrides):
+                 automation='fixed', param_split='all', encounter_list=None, **std_overrides):
+        # automation: the target's collision-avoidance preset = the system under test ('fixed' = sanity case,
+        # 'manual' / 'autonomous' = scenario_targets.AUTOMATION reactive presets). param_split: held-out
+        # parameter intervals (PARAM_SPLITS). encounter_list: a fixed list of (scenario name, scenario seed)
+        # replayed in order, so every method attacks the same initial encounters.
+        if automation not in AUTOMATION:
+            raise ValueError('automation %r unknown; choose %s' % (automation, list(AUTOMATION)))
+        if param_split not in PARAM_SPLITS:
+            raise ValueError('param_split %r unknown; choose %s' % (param_split, PARAM_SPLITS))
+        self.param_split = param_split
+        self.encounter_list = list(encounter_list) if encounter_list else None
+        self._enc_i = 0
+        self.sim_substeps = 0                            # simulator calls (1 s sub-steps), all episodes
+        self.sim_decisions = 0                           # environment transitions, all episodes
         self.names = resolve_scenarios(scenario)
         self.families = self.names                       # viz / scripts treat these as the scenario list
         self.scenario_spec = scenario
@@ -236,7 +281,7 @@ class EncounterAttackEnv(_AttackEnv):
         self.std = S.CollisionStandard(scale, self.cruise, success_severity=success_severity, hold_steps=hold_steps,
                                        **std_overrides)
         self.turn_rate = float(turn_rate_deg) if turn_rate_deg else round(self.std.turn_rate_deg, 3)
-        self.automation = 'fixed'
+        self.automation = automation
         self.trace_path = trace or None
         self.trace_shapes = load_trace_shapes(trace) if trace else None
         # routes the target can sail at cruise speed under the turn rate once scaled like every other length
@@ -290,25 +335,31 @@ class EncounterAttackEnv(_AttackEnv):
         self.observation_space = E._make_box(self.obs_dim)
         self.max_decisions = self.cap_decisions
         self._cycle_i = 0
+        self._enc_i = 0
         self.scen_rng = np.random.RandomState(seed)
 
     # ----------------------------------------------------------- scenarios
     def _new_scenario(self, own_proto=None):
         proto = own_proto if own_proto is not None else self.own_ship_proto
-        if self.cycle:
+        rng, enc_seed = self.scen_rng, None
+        if getattr(self, 'encounter_list', None):
+            name, enc_seed = self.encounter_list[self._enc_i % len(self.encounter_list)]
+            self._enc_i += 1
+            rng = np.random.RandomState(int(enc_seed))
+        elif self.cycle:
             name = self.names[self._cycle_i % len(self.names)]
             self._cycle_i += 1
         else:
             name = self.names[self.scen_rng.randint(len(self.names))]
-        shape = self.trace_routes[self.scen_rng.randint(len(self.trace_routes))] if self.trace_routes else None
+        shape = self.trace_routes[rng.randint(len(self.trace_routes))] if self.trace_routes else None
         cap_s = self.cap_decisions * self.dt_decision
-        sc = make_attack_scenario(name, self.std, self.cruise, self.scen_rng, band=self.band,
+        sc = make_attack_scenario(name, self.std, self.cruise, rng, band=self.band,
                                   own_pos=(proto.long0, proto.lat0), own_cog_deg=proto.cog0, shape_trace=shape,
-                                  cap_s=cap_s)
+                                  cap_s=cap_s, split=getattr(self, 'param_split', 'all'))
         route = sc['route_table'] if sc.get('route_table') is not None else sc['route']
         self.target = TargetShip(route, self.cruise, L=self.std.L, W=self.std.W, risk_range=self.std.d_safe,
-                                 turn_rate_deg=self.turn_rate, automation='fixed', id=name, meta=sc['meta'])
-        self.current = dict(sc['meta'])
+                                 turn_rate_deg=self.turn_rate, automation=self.automation, id=name, meta=sc['meta'])
+        self.current = dict(sc['meta'], encounter_seed=enc_seed if enc_seed is not None else -1)
         self.ts_list, self.ob_list = [self.target], []
         self.objects, self.targets, self.hazards = [self.target], [self.target], []
         # map (v3): the region both ships cover holding course over the cap, plus r_clear
@@ -346,6 +397,7 @@ class EncounterAttackEnv(_AttackEnv):
         self.target.reset()
         self.t = 0.0
         self.n_steps = 0
+        self.ep_substeps = 0
         self.destination_step = 0
         self.outcome = 'running'
         self.termination = 'running'
@@ -407,6 +459,8 @@ class EncounterAttackEnv(_AttackEnv):
             own.advance(self.dt_sub)
             self.t += self.dt_sub
             tgt.advance(self.dt_sub, own, self.t)
+            self.ep_substeps += 1
+            self.sim_substeps += 1
             e = self._assess()
             sub_max = max(sub_max, e['severity'])
             self.min_target_dist = min(self.min_target_dist, tgt.hull_distance(own.x, own.y))
@@ -416,6 +470,7 @@ class EncounterAttackEnv(_AttackEnv):
             if e['severity'] == 3:
                 break
         self.n_steps += 1
+        self.sim_decisions += 1
         if (a_cmd > 0 and own.sp >= own.v_max - 1e-9) or (a_cmd < 0 and own.sp <= own.v_min + 1e-9):
             self.v_hits += 1                                  # commanded beyond a speed limit
         if own.cog_limit is not None and r_cmd != 0 and abs(own.heading_offset) >= own.cog_limit - 1e-9:
@@ -559,7 +614,13 @@ class EncounterAttackEnv(_AttackEnv):
                   min_target_dist=round(self.min_target_dist, 1), steps_in_risk=self.risk_steps,
                   path_length=round(float(np.hypot(seg[:, 0], seg[:, 1]).sum()) if len(seg) else 0.0, 1),
                   mean_speed=round(float(np.mean(own.speeds)), 2), n_turn_cmds=int((r_hist != 0).sum()),
-                  target_evasions=0, destination_step=self.destination_step, total_reward=round(self.total_reward, 3))
+                  target_evasions=getattr(self.target, 'n_evasions', 0), destination_step=self.destination_step,
+                  total_reward=round(self.total_reward, 3))
+        # system under test and the two failure kinds reported separately (study plan section 4)
+        ev.update(automation=self.automation, param_split=self.param_split,
+                  encounter_seed=self.current.get('encounter_seed', -1), substeps=self.ep_substeps,
+                  collision=int(self.max_severity >= 3), domain_violation=int(self.max_severity >= 2),
+                  domain_held=int(self.outcome == 'success'))
         return ev
 
     def show_scenes(self, save_path=None, title=None):

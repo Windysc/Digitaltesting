@@ -70,6 +70,12 @@ AUTOMATION = {
                        detect_range=1500.0, cooldown=60.0, clear_time=10.0),
     'autonomous': dict(reactive=True, latency=0.0, alert_dcpa=300.0, alert_tcpa=150.0, evade_angle_deg=45.0,
                        detect_range=2000.0, cooldown=60.0, clear_time=10.0),
+    # re-planning avoider (2026-10-08, study plan S1): no latency, no cooldown; while the danger criterion
+    # holds it re-plans every replan_s, choosing among starboard alterations 0..max_alter_deg off the route
+    # course the one with the largest predicted miss distance against the attacker's current velocity
+    'replan':     dict(reactive=True, replanning=True, latency=0.0, alert_dcpa=300.0, alert_tcpa=150.0,
+                       detect_range=2000.0, cooldown=0.0, clear_time=10.0, replan_s=6.0, max_alter_deg=90.0,
+                       alter_step_deg=15.0),
 }
 
 
@@ -315,6 +321,8 @@ class TargetShip:
         self.clear_acc = 0.0
         self.cooldown_left = 0.0
         self.n_evasions = 0
+        self.n_replans = 0
+        self.replan_left = 0.0
         self.t = 0.0
         self.track = [(self.x, self.y)]
         self.psi_track = [self.psi]          # heading at every sub-step, for checks of the sailed yaw rate
@@ -373,7 +381,9 @@ class TargetShip:
             self.track.append((self.x, self.y))
             self.psi_track.append(self.psi)
             return
-        if p.get('reactive'):
+        if p.get('replanning'):
+            self._advance_replan(dt, own)
+        elif p.get('reactive'):
             danger, dcpa, tcpa = self._danger(own)
             if not self.evading:
                 if danger and self.cooldown_left <= 0.0:
@@ -401,6 +411,36 @@ class TargetShip:
         self.t += dt
         self.track.append((self.x, self.y))
         self.psi_track.append(self.psi)
+
+    def _miss(self, psi_deg, own):
+        """Predicted miss distance if this ship steers psi_deg and the attacker keeps its velocity."""
+        rad = math.radians(psi_deg)
+        v = (self.speed * math.cos(rad), self.speed * math.sin(rad))
+        dcpa, tcpa = cpa((self.x, self.y), v, (own.x, own.y), own.velocity)
+        return dcpa if tcpa >= 0.0 else math.hypot(own.x - self.x, own.y - self.y)
+
+    def _advance_replan(self, dt, own):
+        p = self.params
+        danger, _, _ = self._danger(own)
+        if danger:
+            self.clear_acc = 0.0
+            self.replan_left -= dt
+            if not self.evading or self.replan_left <= 0.0:
+                base = self._route_course()
+                cands = np.arange(0.0, p['max_alter_deg'] + 1e-9, p['alter_step_deg'])
+                miss = [self._miss(base - a, own) for a in cands]      # starboard = clockwise
+                best = float(cands[int(np.argmax(miss))])
+                if not self.evading:
+                    self.n_evasions += 1
+                self.evading = True
+                self.n_replans += 1
+                self.evade_course = base - best
+                self.replan_left = p['replan_s']
+        elif self.evading:
+            self.clear_acc += dt
+            if self.clear_acc >= p['clear_time']:
+                self.evading = False
+                self.replan_left = 0.0
 
     def __repr__(self):
         return 'TargetShip(%s, speed=%.1f, L=%g, W=%g, automation=%s)' % (

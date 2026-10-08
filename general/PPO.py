@@ -10,6 +10,13 @@ earlier Ship_envre_v2 build, which left the repository on 2026-09-24):
     a = agent.select_action(state)          # stores state/action/logprob/value in agent.buffer
     agent.buffer.rewards.append(r); agent.buffer.is_terminals.append(done)
     agent.update()                          # PPO update on the buffer, then clears it
+    agent.update(next_state)                # GAE mode: bootstrap V(next_state) when the buffer ends mid-episode
+
+Advantage estimate (2026-10-08, study plan item 2): gae_lambda=None keeps the reference
+Monte-Carlo return (normalised per buffer, critic fitted to the normalised return, the
+return set to 0 at the buffer end). gae_lambda=0.95 uses GAE(lambda) with the critic on the
+raw return scale and, when the last stored step is not terminal, the value of next_state as
+the bootstrap, so an episode cut by the update boundary is no longer treated as ended.
     agent.decay_action_std(rate, min_std)   # continuous only
     agent.save(path); agent.load(path)
 
@@ -84,7 +91,8 @@ class ActorCritic(nn.Module):
 class PPO:
     def __init__(self, state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip,
                  has_continuous_action_space, action_std_init=0.6, entropy_coef=0.01,
-                 minibatch_size=None, max_grad_norm=0.5):
+                 minibatch_size=None, max_grad_norm=0.5, gae_lambda=None):
+        self.gae_lambda = gae_lambda
         self.has_continuous_action_space = has_continuous_action_space
         self.action_std = action_std_init
         self.gamma, self.eps_clip, self.K_epochs = gamma, eps_clip, K_epochs
@@ -126,9 +134,37 @@ class PPO:
         return int(action.item())
 
     # ----------------------------------------------------------- learning
-    def update(self):
+    def _targets_gae(self, n, next_state):
+        values = torch.stack(self.buffer.state_values[:n]).detach().squeeze(-1).float()
+        rewards = self.buffer.rewards[:n]
+        terminals = self.buffer.is_terminals[:n]
+        if terminals[-1] or next_state is None:
+            last_value = 0.0
+        else:
+            with torch.no_grad():
+                st = torch.as_tensor(np.asarray(next_state, dtype=np.float32), device=device).unsqueeze(0)
+                last_value = float(self.policy_old.critic(st).item())
+        adv = torch.zeros(n, device=device)
+        gae = 0.0
+        for i in reversed(range(n)):
+            if terminals[i]:
+                next_v, gae = 0.0, 0.0
+            else:
+                next_v = last_value if i == n - 1 else float(values[i + 1])
+            delta = rewards[i] + self.gamma * next_v - float(values[i])
+            gae = delta + self.gamma * self.gae_lambda * gae
+            adv[i] = gae
+        returns = adv + values
+        adv = (adv - adv.mean()) / (adv.std() + 1e-7)
+        return returns, adv
+
+    def update(self, next_state=None):
         if len(self.buffer.rewards) == 0:
             return {}
+        if self.gae_lambda is not None:
+            n = min(len(self.buffer.rewards), len(self.buffer.states))
+            rewards, advantages = self._targets_gae(n, next_state)
+            return self._optimise(n, rewards, advantages)
         rewards, discounted = [], 0.0
         for reward, is_terminal in zip(reversed(self.buffer.rewards), reversed(self.buffer.is_terminals)):
             if is_terminal:
@@ -139,13 +175,16 @@ class PPO:
         rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-7)
 
         n = min(len(rewards), len(self.buffer.states))     # guard against a half-stored last step
-        old_states = torch.stack(self.buffer.states[:n]).detach()
-        old_actions = torch.stack(self.buffer.actions[:n]).detach()
-        old_logprobs = torch.stack(self.buffer.logprobs[:n]).detach()
         old_values = torch.stack(self.buffer.state_values[:n]).detach().squeeze(-1)
         rewards = rewards[:n]
         advantages = (rewards - old_values).detach()
+        return self._optimise(n, rewards, advantages)
 
+    def _optimise(self, n, rewards, advantages):
+        old_states = torch.stack(self.buffer.states[:n]).detach()
+        old_actions = torch.stack(self.buffer.actions[:n]).detach()
+        old_logprobs = torch.stack(self.buffer.logprobs[:n]).detach()
+        advantages = advantages.detach()
         mb = self.minibatch_size or n
         stats = dict(policy_loss=0.0, value_loss=0.0, entropy=0.0)
         for _ in range(self.K_epochs):
